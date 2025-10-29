@@ -5,3 +5,8 @@ mysql:
   password: 123456
   database: prompt
 
+siliconflow:
+  api_key: sk-mfvgxdishgetqlikzayseblbqwbgbfhnmzxybxlnedrfafwy
+  base_url: https://api.siliconflow.cn/v1
+  model: deepseek-ai/DeepSeek-V3.2-Exp
+

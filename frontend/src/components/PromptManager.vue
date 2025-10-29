@@ -144,13 +144,13 @@ async function copyText(text: string) {
 
 <template>
   <div class="page">
-    <header class="topbar">
-      <div class="brand">Prompt 管理</div>
+    <!-- 内部导航栏 -->
+    <div class="internal-nav">
       <nav class="tabs">
-        <button :class="{ active: activeTab==='list' }" @click="activeTab='list'">查询</button>
-        <button :class="{ active: activeTab==='create' }" @click="activeTab='create'">新增</button>
+        <button :class="{ active: activeTab==='list' }" @click="activeTab='list'">📋 查询</button>
+        <button :class="{ active: activeTab==='create' }" @click="activeTab='create'">➕ 新增</button>
       </nav>
-    </header>
+    </div>
 
     <main class="main">
       <!-- 查询 Tab -->
@@ -253,29 +253,57 @@ async function copyText(text: string) {
 </template>
 
 <style scoped>
-/* 全屏布局 */
+/* 页面布局 */
 .page {
-  display: grid;
-  grid-template-rows: 56px 1fr;
-  height: 100dvh;
-  background: #f7f7fb;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: transparent;
 }
-.topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px;
-  background: #0f172a; /* 深色顶栏 */
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
-.brand { font-weight: 700; letter-spacing: 0.3px; }
-.tabs { display: flex; gap: 8px; }
-.tabs button {
-  background: transparent; color: #cbd5e1; border: 1px solid transparent;
-  padding: 6px 12px; border-radius: 999px; cursor: pointer;
-}
-.tabs button.active { background: #1e293b; color: #fff; border-color: #334155; }
 
-.main { padding: 16px 20px; overflow: auto; }
+/* 内部导航栏 */
+.internal-nav {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  padding: 0 24px;
+}
+
+.tabs { 
+  display: flex; 
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 4px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+.tabs button {
+  background: transparent; 
+  color: #64748b; 
+  border: 1px solid transparent;
+  padding: 8px 16px; 
+  border-radius: 8px; 
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+.tabs button:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #334155;
+}
+.tabs button.active { 
+  background: linear-gradient(135deg, #667eea, #764ba2); 
+  color: #fff; 
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.main { 
+  padding: 0 24px 24px; 
+  overflow: auto; 
+  flex: 1;
+}
 .panel { width: 100%; max-width: none; margin: 0; }
 
 .card {

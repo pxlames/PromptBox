@@ -33,7 +33,8 @@ REM 后端端口，可按需修改
 set "BACKEND_HOST=0.0.0.0"
 set "BACKEND_PORT=8021"
 REM 前端参数
-set "FRONTEND_HOST=127.0.0.1"
+REM 设置为 0.0.0.0 允许局域网访问，127.0.0.1 仅本地
+set "FRONTEND_HOST=0.0.0.0"
 set "FRONTEND_PORT=5173"
 
 echo [INFO] Logs will be written to %LOG_DIR%
@@ -67,6 +68,10 @@ if exist "%FRONTEND_DIR%" (
   )
   start "Prompt Frontend" /min cmd /c "cd /d \"%FRONTEND_DIR%\" ^&^& npm run dev -- --host %FRONTEND_HOST% --port %FRONTEND_PORT% --strictPort >> \"%LOG_FRONTEND%\" 2^>^&1"
   echo [OK] Frontend starting ^(Vite dev server^) on http://%FRONTEND_HOST%:%FRONTEND_PORT%/
+  if "%FRONTEND_HOST%"=="0.0.0.0" (
+    echo [INFO] To access from network, find your IP: ipconfig
+    echo [INFO] Or use public tunnel: public_tunnel.cmd
+  )
 ) else (
   echo [WARN] Frontend directory not found: %FRONTEND_DIR%
 )

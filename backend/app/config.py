@@ -31,3 +31,13 @@ def get_mysql_dsn() -> str:
     return f"mysql+pymysql://{user}:{password}@{host}:{port}/{name}?charset=utf8mb4"
 
 
+def get_siliconflow_config() -> dict:
+    cfg = load_config()
+    sf = cfg.get("siliconflow", {})
+    return {
+        "api_key": sf.get("api_key", ""),
+        "base_url": sf.get("base_url", "https://api.siliconflow.cn/v1"),
+        "model": sf.get("model", "Qwen/Qwen2.5-72B-Instruct")
+    }
+
+

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>代理测试</title>
+</head>
+<body>
+    <h1>Vite 代理测试</h1>
+    <button onclick="testProxy()">测试代理</button>
+    <div id="result"></div>
+
+    <script>
+        async function testProxy() {
+            const result = document.getElementById('result');
+            result.innerHTML = '测试中...';
+            
+            try {
+                const res = await fetch('/api/prompts/count');
+                const data = await res.json();
+                result.innerHTML = `✅ 代理正常！<br>响应：${JSON.stringify(data)}`;
+            } catch (error) {
+                result.innerHTML = `❌ 代理失败：${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
+
