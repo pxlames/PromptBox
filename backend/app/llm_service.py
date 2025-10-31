@@ -96,6 +96,31 @@ class LLMService:
                 json=payload,
                 timeout=60
             )
+            
+            # 检查响应状态
+            if response.status_code == 403:
+                error_msg = "API访问被拒绝 (403 Forbidden)"
+                try:
+                    error_detail = response.json()
+                    # SiliconFlow API返回格式：{"code": 30001, "message": "...", "data": null}
+                    if isinstance(error_detail, dict):
+                        if 'message' in error_detail:
+                            error_msg = f"{error_msg}: {error_detail['message']}"
+                        elif 'error' in error_detail:
+                            if isinstance(error_detail['error'], dict) and 'message' in error_detail['error']:
+                                error_msg = f"{error_msg}: {error_detail['error']['message']}"
+                            else:
+                                error_msg = f"{error_msg}: {error_detail['error']}"
+                except:
+                    # 如果无法解析JSON，尝试读取文本
+                    try:
+                        error_text = response.text[:200]
+                        if error_text:
+                            error_msg = f"{error_msg}: {error_text}"
+                    except:
+                        pass
+                raise Exception(error_msg)
+            
             response.raise_for_status()
             
             result = response.json()
@@ -107,6 +132,32 @@ class LLMService:
             else:
                 raise Exception("API返回的数据格式异常")
                 
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                error_msg = "API访问被拒绝 (403 Forbidden)"
+                try:
+                    error_detail = e.response.json()
+                    # SiliconFlow API返回格式：{"code": 30001, "message": "...", "data": null}
+                    if isinstance(error_detail, dict):
+                        if 'message' in error_detail:
+                            error_msg = f"{error_msg}: {error_detail['message']}"
+                        elif 'error' in error_detail:
+                            if isinstance(error_detail['error'], dict) and 'message' in error_detail['error']:
+                                error_msg = f"{error_msg}: {error_detail['error']['message']}"
+                            else:
+                                error_msg = f"{error_msg}: {error_detail['error']}"
+                except:
+                    # 如果无法解析JSON，尝试读取文本
+                    try:
+                        error_text = e.response.text[:200]
+                        if error_text:
+                            error_msg = f"{error_msg}: {error_text}"
+                    except:
+                        pass
+                if error_msg == "API访问被拒绝 (403 Forbidden)":
+                    error_msg = 'API访问被拒绝 (403)，请检查API密钥是否有效、账户是否有余额、以及是否有权限访问该模型'
+                raise Exception(error_msg)
+            raise Exception(f"调用大模型API失败 (HTTP {e.response.status_code}): {str(e)}")
         except requests.exceptions.RequestException as e:
             raise Exception(f"调用大模型API失败: {str(e)}")
         except Exception as e:
@@ -197,6 +248,31 @@ class LLMService:
                 stream=True,
                 timeout=120
             )
+            
+            # 检查响应状态
+            if response.status_code == 403:
+                error_msg = "API访问被拒绝 (403 Forbidden)"
+                try:
+                    error_detail = response.json()
+                    # SiliconFlow API返回格式：{"code": 30001, "message": "...", "data": null}
+                    if isinstance(error_detail, dict):
+                        if 'message' in error_detail:
+                            error_msg = f"{error_msg}: {error_detail['message']}"
+                        elif 'error' in error_detail:
+                            if isinstance(error_detail['error'], dict) and 'message' in error_detail['error']:
+                                error_msg = f"{error_msg}: {error_detail['error']['message']}"
+                            else:
+                                error_msg = f"{error_msg}: {error_detail['error']}"
+                except:
+                    # 如果无法解析JSON，尝试读取文本
+                    try:
+                        error_text = response.text[:200]
+                        if error_text:
+                            error_msg = f"{error_msg}: {error_text}"
+                    except:
+                        pass
+                raise Exception(error_msg)
+            
             response.raise_for_status()
             
             # 处理流式响应
@@ -223,6 +299,32 @@ class LLMService:
                             # 忽略无法解析的行
                             continue
                             
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                error_msg = "API访问被拒绝 (403 Forbidden)"
+                try:
+                    error_detail = e.response.json()
+                    # SiliconFlow API返回格式：{"code": 30001, "message": "...", "data": null}
+                    if isinstance(error_detail, dict):
+                        if 'message' in error_detail:
+                            error_msg = f"{error_msg}: {error_detail['message']}"
+                        elif 'error' in error_detail:
+                            if isinstance(error_detail['error'], dict) and 'message' in error_detail['error']:
+                                error_msg = f"{error_msg}: {error_detail['error']['message']}"
+                            else:
+                                error_msg = f"{error_msg}: {error_detail['error']}"
+                except:
+                    # 如果无法解析JSON，尝试读取文本
+                    try:
+                        error_text = e.response.text[:200]
+                        if error_text:
+                            error_msg = f"{error_msg}: {error_text}"
+                    except:
+                        pass
+                if error_msg == "API访问被拒绝 (403 Forbidden)":
+                    error_msg = 'API访问被拒绝 (403)，请检查API密钥是否有效、账户是否有余额、以及是否有权限访问该模型'
+                raise Exception(error_msg)
+            raise Exception(f"调用大模型API失败 (HTTP {e.response.status_code}): {str(e)}")
         except requests.exceptions.RequestException as e:
             raise Exception(f"调用大模型API失败: {str(e)}")
         except Exception as e:

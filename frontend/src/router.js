@@ -26,6 +26,7 @@ router.beforeEach((to, from, next) => {
     'prompts': '💡 Prompt管理',
     'resume': '📄 简历管理',
     'okr': '🎯 OKR管理',
+    'algo': '🧩 刷题',
     'analytics': '📊 数据分析',
     'settings': '⚙️ 系统设置',
     'tools': '🔧 工具箱',
@@ -35,7 +36,9 @@ router.beforeEach((to, from, next) => {
     'ai-assistant': '🤖 AI助手',
     'workflow': '🔄 工作流',
     'export': '📤 导出工具',
-    'backup': '💾 备份恢复'
+    'backup': '💾 备份恢复',
+    'interview': '🎤 面试题库 Interview',
+    'opinion': '💭 观点记录'
   }
   
   const title = tabMap[tabName] || '智能工作台'

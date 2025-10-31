@@ -6,7 +6,7 @@ mysql:
   database: prompt
 
 siliconflow:
-  api_key: sk-mfvgxdishgetqlikzayseblbqwbgbfhnmzxybxlnedrfafwy
+  api_key: sk-wplcytqmxykpttveojfecvdmcnpcohenxftpphvtfqmxpdtz
   base_url: https://api.siliconflow.cn/v1
   model: deepseek-ai/DeepSeek-V3.2-Exp
 

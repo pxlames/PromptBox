@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from .db import Base, engine
-from .routes import router as prompt_router, resume_router, okr_router
+from .routes import router as prompt_router, resume_router, okr_router, interview_router, opinion_router
 
 
 def create_app() -> FastAPI:
@@ -30,6 +30,8 @@ def create_app() -> FastAPI:
     app.include_router(prompt_router)
     app.include_router(resume_router)
     app.include_router(okr_router)
+    app.include_router(interview_router)
+    app.include_router(opinion_router)
 
     @app.get("/health")
     async def health_check():

@@ -553,3 +553,274 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     return None
 
 
+# ==================== 面试题库 API ====================
+
+interview_router = APIRouter(prefix="/interview", tags=["interview"])
+
+
+# InterviewCategory API
+@interview_router.get("/categories/", response_model=List[schemas.InterviewCategoryOut])
+def list_interview_categories(skip: int = Query(0, ge=0), limit: int = Query(1000, ge=1, le=1000), db: Session = Depends(get_db)):
+    return crud.list_interview_categories(db, skip=skip, limit=limit)
+
+
+@interview_router.get("/categories/{category_id}", response_model=schemas.InterviewCategoryOut)
+def get_interview_category(category_id: int, db: Session = Depends(get_db)):
+    category = crud.get_interview_category(db, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Interview category not found")
+    return category
+
+
+@interview_router.post("/categories/", response_model=schemas.InterviewCategoryOut, status_code=201)
+def create_interview_category(data: schemas.InterviewCategoryCreate, db: Session = Depends(get_db)):
+    return crud.create_interview_category(db, data)
+
+
+@interview_router.put("/categories/{category_id}", response_model=schemas.InterviewCategoryOut)
+def update_interview_category(category_id: int, data: schemas.InterviewCategoryUpdate, db: Session = Depends(get_db)):
+    category = crud.update_interview_category(db, category_id, data)
+    if not category:
+        raise HTTPException(status_code=404, detail="Interview category not found")
+    return category
+
+
+@interview_router.delete("/categories/{category_id}", status_code=204)
+def delete_interview_category(category_id: int, db: Session = Depends(get_db)):
+    ok = crud.delete_interview_category(db, category_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Interview category not found")
+    return None
+
+
+# InterviewQuestion API
+@interview_router.get("/questions/", response_model=List[schemas.InterviewQuestionOut])
+def list_interview_questions(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(1000, ge=1, le=1000),
+    category_id: int | None = Query(None, description="Filter by category ID"),
+    db: Session = Depends(get_db),
+):
+    questions = crud.list_interview_questions(db, skip=skip, limit=limit, category_id=category_id)
+    # 加载每个问题的答案
+    result = []
+    for q in questions:
+        answers = crud.list_interview_answers_by_question(db, q.id)
+        # 构建返回对象
+        q_out = schemas.InterviewQuestionOut(
+            id=q.id,
+            description=q.description,
+            category_id=q.category_id,
+            company=q.company or "",
+            tags=q.tags or "",
+            difficulty=q.difficulty,
+            round=q.round or "",
+            created_at=q.created_at,
+            updated_at=q.updated_at,
+            answers=[schemas.InterviewAnswerOut(
+                id=a.id,
+                question_id=a.question_id,
+                content=a.content,
+                created_at=a.created_at,
+                updated_at=a.updated_at
+            ) for a in answers]
+        )
+        result.append(q_out)
+    return result
+
+
+@interview_router.get("/questions/{question_id}", response_model=schemas.InterviewQuestionOut)
+def get_interview_question(question_id: int, db: Session = Depends(get_db)):
+    question = crud.get_interview_question(db, question_id)
+    if not question:
+        raise HTTPException(status_code=404, detail="Interview question not found")
+    answers = crud.list_interview_answers_by_question(db, question_id)
+    return schemas.InterviewQuestionOut(
+        id=question.id,
+        description=question.description,
+        category_id=question.category_id,
+        company=question.company or "",
+        tags=question.tags or "",
+        difficulty=question.difficulty,
+        round=question.round or "",
+        created_at=question.created_at,
+        updated_at=question.updated_at,
+        answers=[schemas.InterviewAnswerOut(
+            id=a.id,
+            question_id=a.question_id,
+            content=a.content,
+            created_at=a.created_at,
+            updated_at=a.updated_at
+        ) for a in answers]
+    )
+
+
+@interview_router.post("/questions/", response_model=schemas.InterviewQuestionOut, status_code=201)
+def create_interview_question(data: schemas.InterviewQuestionCreate, db: Session = Depends(get_db)):
+    question = crud.create_interview_question(db, data)
+    return schemas.InterviewQuestionOut(
+        id=question.id,
+        description=question.description,
+        category_id=question.category_id,
+        company=question.company or "",
+        tags=question.tags or "",
+        difficulty=question.difficulty,
+        round=question.round or "",
+        created_at=question.created_at,
+        updated_at=question.updated_at,
+        answers=[]
+    )
+
+
+@interview_router.put("/questions/{question_id}", response_model=schemas.InterviewQuestionOut)
+def update_interview_question(question_id: int, data: schemas.InterviewQuestionUpdate, db: Session = Depends(get_db)):
+    question = crud.update_interview_question(db, question_id, data)
+    if not question:
+        raise HTTPException(status_code=404, detail="Interview question not found")
+    answers = crud.list_interview_answers_by_question(db, question_id)
+    return schemas.InterviewQuestionOut(
+        id=question.id,
+        description=question.description,
+        category_id=question.category_id,
+        company=question.company or "",
+        tags=question.tags or "",
+        difficulty=question.difficulty,
+        round=question.round or "",
+        created_at=question.created_at,
+        updated_at=question.updated_at,
+        answers=[schemas.InterviewAnswerOut(
+            id=a.id,
+            question_id=a.question_id,
+            content=a.content,
+            created_at=a.created_at,
+            updated_at=a.updated_at
+        ) for a in answers]
+    )
+
+
+@interview_router.delete("/questions/{question_id}", status_code=204)
+def delete_interview_question(question_id: int, db: Session = Depends(get_db)):
+    ok = crud.delete_interview_question(db, question_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Interview question not found")
+    return None
+
+
+# InterviewAnswer API
+@interview_router.get("/questions/{question_id}/answers/", response_model=List[schemas.InterviewAnswerOut])
+def list_interview_answers_by_question(question_id: int, db: Session = Depends(get_db)):
+    return crud.list_interview_answers_by_question(db, question_id)
+
+
+@interview_router.get("/answers/{answer_id}", response_model=schemas.InterviewAnswerOut)
+def get_interview_answer(answer_id: int, db: Session = Depends(get_db)):
+    answer = crud.get_interview_answer(db, answer_id)
+    if not answer:
+        raise HTTPException(status_code=404, detail="Interview answer not found")
+    return answer
+
+
+@interview_router.post("/answers/", response_model=schemas.InterviewAnswerOut, status_code=201)
+def create_interview_answer(data: schemas.InterviewAnswerCreate, db: Session = Depends(get_db)):
+    answer = crud.create_interview_answer(db, data)
+    if not answer:
+        raise HTTPException(status_code=404, detail="Interview question not found")
+    return answer
+
+
+@interview_router.put("/answers/{answer_id}", response_model=schemas.InterviewAnswerOut)
+def update_interview_answer(answer_id: int, data: schemas.InterviewAnswerUpdate, db: Session = Depends(get_db)):
+    answer = crud.update_interview_answer(db, answer_id, data)
+    if not answer:
+        raise HTTPException(status_code=404, detail="Interview answer not found")
+    return answer
+
+
+@interview_router.delete("/answers/{answer_id}", status_code=204)
+def delete_interview_answer(answer_id: int, db: Session = Depends(get_db)):
+    ok = crud.delete_interview_answer(db, answer_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Interview answer not found")
+    return None
+
+
+# ==================== 观点记录 API ====================
+
+opinion_router = APIRouter(prefix="/opinion", tags=["opinion"])
+
+
+# OpinionCategory API
+@opinion_router.get("/categories/", response_model=List[schemas.OpinionCategoryOut])
+def list_opinion_categories(skip: int = Query(0, ge=0), limit: int = Query(1000, ge=1, le=1000), db: Session = Depends(get_db)):
+    return crud.list_opinion_categories(db, skip=skip, limit=limit)
+
+
+@opinion_router.get("/categories/{category_id}", response_model=schemas.OpinionCategoryOut)
+def get_opinion_category(category_id: int, db: Session = Depends(get_db)):
+    category = crud.get_opinion_category(db, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Opinion category not found")
+    return category
+
+
+@opinion_router.post("/categories/", response_model=schemas.OpinionCategoryOut, status_code=201)
+def create_opinion_category(data: schemas.OpinionCategoryCreate, db: Session = Depends(get_db)):
+    return crud.create_opinion_category(db, data)
+
+
+@opinion_router.put("/categories/{category_id}", response_model=schemas.OpinionCategoryOut)
+def update_opinion_category(category_id: int, data: schemas.OpinionCategoryUpdate, db: Session = Depends(get_db)):
+    category = crud.update_opinion_category(db, category_id, data)
+    if not category:
+        raise HTTPException(status_code=404, detail="Opinion category not found")
+    return category
+
+
+@opinion_router.delete("/categories/{category_id}", status_code=204)
+def delete_opinion_category(category_id: int, db: Session = Depends(get_db)):
+    ok = crud.delete_opinion_category(db, category_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Opinion category not found")
+    return None
+
+
+# Opinion API
+@opinion_router.get("/opinions/", response_model=List[schemas.OpinionOut])
+def list_opinions(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(1000, ge=1, le=1000),
+    category_id: int | None = Query(None, description="Filter by category ID"),
+    db: Session = Depends(get_db),
+):
+    return crud.list_opinions(db, skip=skip, limit=limit, category_id=category_id)
+
+
+@opinion_router.get("/opinions/{opinion_id}", response_model=schemas.OpinionOut)
+def get_opinion(opinion_id: int, db: Session = Depends(get_db)):
+    opinion = crud.get_opinion(db, opinion_id)
+    if not opinion:
+        raise HTTPException(status_code=404, detail="Opinion not found")
+    return opinion
+
+
+@opinion_router.post("/opinions/", response_model=schemas.OpinionOut, status_code=201)
+def create_opinion(data: schemas.OpinionCreate, db: Session = Depends(get_db)):
+    return crud.create_opinion(db, data)
+
+
+@opinion_router.put("/opinions/{opinion_id}", response_model=schemas.OpinionOut)
+def update_opinion(opinion_id: int, data: schemas.OpinionUpdate, db: Session = Depends(get_db)):
+    opinion = crud.update_opinion(db, opinion_id, data)
+    if not opinion:
+        raise HTTPException(status_code=404, detail="Opinion not found")
+    return opinion
+
+
+@opinion_router.delete("/opinions/{opinion_id}", status_code=204)
+def delete_opinion(opinion_id: int, db: Session = Depends(get_db)):
+    ok = crud.delete_opinion(db, opinion_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Opinion not found")
+    return None
+
+

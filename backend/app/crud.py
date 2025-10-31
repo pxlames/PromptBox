@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from typing import List, Optional
+from datetime import datetime, timezone
 
 from . import models, schemas
 
@@ -510,5 +511,285 @@ def toggle_task_completion(db: Session, task_id: int, completed: bool) -> Option
     db.commit()
     db.refresh(task)
     return task
+
+
+# ==================== 面试题库 CRUD操作 ====================
+
+# InterviewCategory CRUD
+def create_interview_category(db: Session, data: schemas.InterviewCategoryCreate) -> models.InterviewCategory:
+    category = models.InterviewCategory(
+        name=data.name,
+        order=data.order
+    )
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def get_interview_category(db: Session, category_id: int) -> Optional[models.InterviewCategory]:
+    return db.get(models.InterviewCategory, category_id)
+
+
+def list_interview_categories(db: Session, skip: int = 0, limit: int = 1000) -> List[models.InterviewCategory]:
+    stmt = select(models.InterviewCategory).order_by(models.InterviewCategory.order.asc(), models.InterviewCategory.id.asc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_interview_category(db: Session, category_id: int, data: schemas.InterviewCategoryUpdate) -> Optional[models.InterviewCategory]:
+    category = db.get(models.InterviewCategory, category_id)
+    if not category:
+        return None
+    if data.name is not None:
+        category.name = data.name
+    if data.order is not None:
+        category.order = data.order
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def delete_interview_category(db: Session, category_id: int) -> bool:
+    category = db.get(models.InterviewCategory, category_id)
+    if not category:
+        return False
+    # 删除分类时，将关联的问题的 category_id 设为 None
+    stmt = select(models.InterviewQuestion).where(models.InterviewQuestion.category_id == category_id)
+    questions = db.execute(stmt).scalars().all()
+    for question in questions:
+        question.category_id = None
+    db.delete(category)
+    db.commit()
+    return True
+
+
+# InterviewQuestion CRUD
+def create_interview_question(db: Session, data: schemas.InterviewQuestionCreate) -> models.InterviewQuestion:
+    question = models.InterviewQuestion(
+        description=data.description,
+        category_id=data.category_id,
+        company=data.company or "",
+        tags=data.tags or "",
+        difficulty=data.difficulty,
+        round=data.round or ""
+    )
+    db.add(question)
+    db.commit()
+    db.refresh(question)
+    return question
+
+
+def get_interview_question(db: Session, question_id: int) -> Optional[models.InterviewQuestion]:
+    return db.get(models.InterviewQuestion, question_id)
+
+
+def list_interview_questions(
+    db: Session, 
+    skip: int = 0, 
+    limit: int = 1000,
+    category_id: Optional[int] = None
+) -> List[models.InterviewQuestion]:
+    stmt = select(models.InterviewQuestion)
+    if category_id is not None:
+        stmt = stmt.where(models.InterviewQuestion.category_id == category_id)
+    stmt = stmt.order_by(models.InterviewQuestion.updated_at.desc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_interview_question(db: Session, question_id: int, data: schemas.InterviewQuestionUpdate) -> Optional[models.InterviewQuestion]:
+    question = db.get(models.InterviewQuestion, question_id)
+    if not question:
+        return None
+    if data.description is not None:
+        question.description = data.description
+    if data.category_id is not None:
+        question.category_id = data.category_id
+    if data.company is not None:
+        question.company = data.company
+    if data.tags is not None:
+        question.tags = data.tags
+    if data.difficulty is not None:
+        question.difficulty = data.difficulty
+    if data.round is not None:
+        question.round = data.round
+    db.add(question)
+    db.commit()
+    db.refresh(question)
+    return question
+
+
+def delete_interview_question(db: Session, question_id: int) -> bool:
+    question = db.get(models.InterviewQuestion, question_id)
+    if not question:
+        return False
+    # 删除问题时，同时删除关联的所有答案
+    stmt = select(models.InterviewAnswer).where(models.InterviewAnswer.question_id == question_id)
+    answers = db.execute(stmt).scalars().all()
+    for answer in answers:
+        db.delete(answer)
+    db.delete(question)
+    db.commit()
+    return True
+
+
+# InterviewAnswer CRUD
+def create_interview_answer(db: Session, data: schemas.InterviewAnswerCreate) -> Optional[models.InterviewAnswer]:
+    # 验证问题是否存在
+    question = db.get(models.InterviewQuestion, data.question_id)
+    if not question:
+        return None
+    answer = models.InterviewAnswer(
+        question_id=data.question_id,
+        content=data.content
+    )
+    db.add(answer)
+    # 更新问题的 updated_at
+    question.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(answer)
+    return answer
+
+
+def get_interview_answer(db: Session, answer_id: int) -> Optional[models.InterviewAnswer]:
+    return db.get(models.InterviewAnswer, answer_id)
+
+
+def list_interview_answers_by_question(db: Session, question_id: int) -> List[models.InterviewAnswer]:
+    stmt = select(models.InterviewAnswer).where(models.InterviewAnswer.question_id == question_id).order_by(models.InterviewAnswer.created_at.asc())
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_interview_answer(db: Session, answer_id: int, data: schemas.InterviewAnswerUpdate) -> Optional[models.InterviewAnswer]:
+    answer = db.get(models.InterviewAnswer, answer_id)
+    if not answer:
+        return None
+    if data.content is not None:
+        answer.content = data.content
+        # 更新关联问题的 updated_at
+        question = db.get(models.InterviewQuestion, answer.question_id)
+        if question:
+            question.updated_at = datetime.now(timezone.utc)
+    db.add(answer)
+    db.commit()
+    db.refresh(answer)
+    return answer
+
+
+def delete_interview_answer(db: Session, answer_id: int) -> bool:
+    answer = db.get(models.InterviewAnswer, answer_id)
+    if not answer:
+        return False
+    question_id = answer.question_id
+    db.delete(answer)
+    # 更新关联问题的 updated_at
+    question = db.get(models.InterviewQuestion, question_id)
+    if question:
+        question.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return True
+
+
+# ==================== 观点记录 CRUD操作 ====================
+
+# OpinionCategory CRUD
+def create_opinion_category(db: Session, data: schemas.OpinionCategoryCreate) -> models.OpinionCategory:
+    category = models.OpinionCategory(
+        name=data.name,
+        order=data.order
+    )
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def get_opinion_category(db: Session, category_id: int) -> Optional[models.OpinionCategory]:
+    return db.get(models.OpinionCategory, category_id)
+
+
+def list_opinion_categories(db: Session, skip: int = 0, limit: int = 1000) -> List[models.OpinionCategory]:
+    stmt = select(models.OpinionCategory).order_by(models.OpinionCategory.order.asc(), models.OpinionCategory.id.asc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_opinion_category(db: Session, category_id: int, data: schemas.OpinionCategoryUpdate) -> Optional[models.OpinionCategory]:
+    category = db.get(models.OpinionCategory, category_id)
+    if not category:
+        return None
+    if data.name is not None:
+        category.name = data.name
+    if data.order is not None:
+        category.order = data.order
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def delete_opinion_category(db: Session, category_id: int) -> bool:
+    category = db.get(models.OpinionCategory, category_id)
+    if not category:
+        return False
+    # 删除分类时，将关联的观点 category_id 设为 None
+    stmt = select(models.Opinion).where(models.Opinion.category_id == category_id)
+    opinions = db.execute(stmt).scalars().all()
+    for opinion in opinions:
+        opinion.category_id = None
+    db.delete(category)
+    db.commit()
+    return True
+
+
+# Opinion CRUD
+def create_opinion(db: Session, data: schemas.OpinionCreate) -> models.Opinion:
+    opinion = models.Opinion(
+        description=data.description,
+        category_id=data.category_id
+    )
+    db.add(opinion)
+    db.commit()
+    db.refresh(opinion)
+    return opinion
+
+
+def get_opinion(db: Session, opinion_id: int) -> Optional[models.Opinion]:
+    return db.get(models.Opinion, opinion_id)
+
+
+def list_opinions(
+    db: Session, 
+    skip: int = 0, 
+    limit: int = 1000,
+    category_id: Optional[int] = None
+) -> List[models.Opinion]:
+    stmt = select(models.Opinion)
+    if category_id is not None:
+        stmt = stmt.where(models.Opinion.category_id == category_id)
+    stmt = stmt.order_by(models.Opinion.updated_at.desc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_opinion(db: Session, opinion_id: int, data: schemas.OpinionUpdate) -> Optional[models.Opinion]:
+    opinion = db.get(models.Opinion, opinion_id)
+    if not opinion:
+        return None
+    if data.description is not None:
+        opinion.description = data.description
+    if data.category_id is not None:
+        opinion.category_id = data.category_id
+    db.add(opinion)
+    db.commit()
+    db.refresh(opinion)
+    return opinion
+
+
+def delete_opinion(db: Session, opinion_id: int) -> bool:
+    opinion = db.get(models.Opinion, opinion_id)
+    if not opinion:
+        return False
+    db.delete(opinion)
+    db.commit()
+    return True
 
 

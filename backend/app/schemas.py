@@ -262,3 +262,128 @@ class TaskOut(BaseModel):
         orm_mode = True
 
 
+# 面试题库相关schemas
+class InterviewCategoryBase(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    order: int = Field(default=0, ge=0)
+
+
+class InterviewCategoryCreate(InterviewCategoryBase):
+    pass
+
+
+class InterviewCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    order: Optional[int] = Field(default=None, ge=0)
+
+
+class InterviewCategoryOut(InterviewCategoryBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class InterviewAnswerBase(BaseModel):
+    content: str = Field(min_length=1)
+
+
+class InterviewAnswerCreate(InterviewAnswerBase):
+    question_id: int
+
+
+class InterviewAnswerUpdate(BaseModel):
+    content: Optional[str] = Field(default=None, min_length=1)
+
+
+class InterviewAnswerOut(InterviewAnswerBase):
+    id: int
+    question_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class InterviewQuestionBase(BaseModel):
+    description: str = Field(min_length=1)
+    category_id: Optional[int] = None
+    company: Optional[str] = Field(default="", max_length=200)
+    tags: Optional[str] = Field(default="", max_length=500)
+    difficulty: str = Field(default="中等", max_length=20)  # 简单/中等/困难
+    round: Optional[str] = Field(default="", max_length=100)
+
+
+class InterviewQuestionCreate(InterviewQuestionBase):
+    pass
+
+
+class InterviewQuestionUpdate(BaseModel):
+    description: Optional[str] = Field(default=None, min_length=1)
+    category_id: Optional[int] = None
+    company: Optional[str] = Field(default=None, max_length=200)
+    tags: Optional[str] = Field(default=None, max_length=500)
+    difficulty: Optional[str] = Field(default=None, max_length=20)
+    round: Optional[str] = Field(default=None, max_length=100)
+
+
+class InterviewQuestionOut(InterviewQuestionBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    answers: List[InterviewAnswerOut] = []
+
+    class Config:
+        orm_mode = True
+
+
+# 观点记录相关schemas
+class OpinionCategoryBase(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    order: int = Field(default=0, ge=0)
+
+
+class OpinionCategoryCreate(OpinionCategoryBase):
+    pass
+
+
+class OpinionCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    order: Optional[int] = Field(default=None, ge=0)
+
+
+class OpinionCategoryOut(OpinionCategoryBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class OpinionBase(BaseModel):
+    description: str = Field(min_length=1)
+    category_id: Optional[int] = None
+
+
+class OpinionCreate(OpinionBase):
+    pass
+
+
+class OpinionUpdate(BaseModel):
+    description: Optional[str] = Field(default=None, min_length=1)
+    category_id: Optional[int] = None
+
+
+class OpinionOut(OpinionBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+

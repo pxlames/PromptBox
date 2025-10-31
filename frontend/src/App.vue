@@ -4,6 +4,9 @@ import { useRouter, useRoute } from 'vue-router'
 import PromptManager from './components/PromptManager.vue'
 import ResumeManager from './components/ResumeManager.vue'
 import OKRManager from './components/OKRManager.vue'
+import AlgoPractice from './components/AlgoPractice.vue'
+import InterviewBank from './components/InterviewBank.vue'
+import OpinionBank from './components/OpinionBank.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -13,6 +16,9 @@ const tabs = [
   { id: 'prompts', name: 'Prompt管理', icon: '💡', component: PromptManager },
   { id: 'resume', name: '简历管理', icon: '📄', component: ResumeManager },
   { id: 'okr', name: 'OKR管理', icon: '🎯', component: OKRManager },
+  { id: 'algo', name: '刷题', icon: '🧩', component: AlgoPractice },
+  { id: 'interview', name: '面试题库 Interview', icon: '🎤', component: InterviewBank },
+  { id: 'opinion', name: '观点记录', icon: '💭', component: OpinionBank },
   // 预留更多标签页位置
   { id: 'analytics', name: '数据分析', icon: '📊', component: null },
   { id: 'settings', name: '系统设置', icon: '⚙️', component: null },

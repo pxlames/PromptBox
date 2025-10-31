@@ -138,6 +138,68 @@ export type Task = {
 export type TaskCreate = Omit<Task, 'id' | 'completed' | 'created_at' | 'updated_at'>;
 export type TaskUpdate = Partial<TaskCreate> & { completed?: boolean };
 
+// 面试题库相关类型定义
+export type InterviewCategory = {
+  id: number;
+  name: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InterviewCategoryCreate = Omit<InterviewCategory, 'id' | 'created_at' | 'updated_at'>;
+export type InterviewCategoryUpdate = Partial<InterviewCategoryCreate>;
+
+export type InterviewAnswer = {
+  id: number;
+  question_id: number;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InterviewAnswerCreate = Omit<InterviewAnswer, 'id' | 'created_at' | 'updated_at'>;
+export type InterviewAnswerUpdate = Partial<Omit<InterviewAnswer, 'id' | 'question_id' | 'created_at' | 'updated_at'>>;
+
+export type InterviewQuestion = {
+  id: number;
+  description: string;
+  category_id: number | null;
+  company: string;
+  tags: string;
+  difficulty: '简单' | '中等' | '困难';
+  round: string;
+  answers: InterviewAnswer[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type InterviewQuestionCreate = Omit<InterviewQuestion, 'id' | 'answers' | 'created_at' | 'updated_at'>;
+export type InterviewQuestionUpdate = Partial<Omit<InterviewQuestion, 'id' | 'answers' | 'created_at' | 'updated_at'>>;
+
+// 观点记录相关类型定义
+export type OpinionCategory = {
+  id: number;
+  name: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OpinionCategoryCreate = Omit<OpinionCategory, 'id' | 'created_at' | 'updated_at'>;
+export type OpinionCategoryUpdate = Partial<OpinionCategoryCreate>;
+
+export type Opinion = {
+  id: number;
+  description: string;
+  category_id: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OpinionCreate = Omit<Opinion, 'id' | 'created_at' | 'updated_at'>;
+export type OpinionUpdate = Partial<OpinionCreate>;
+
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   // 使用相对路径，通过 Vite 代理访问后端
   // 这样可以避免跨域问题，特别是在局域网访问时
@@ -343,6 +405,57 @@ export const api = {
   updateTask: (id: number, data: TaskUpdate) => http<Task>(`/okr/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   toggleTask: (id: number, completed: boolean) => http<Task>(`/okr/tasks/${id}/toggle`, { method: 'POST', body: JSON.stringify({ completed }) }),
   deleteTask: (id: number) => http<void>(`/okr/tasks/${id}`, { method: 'DELETE' }),
+
+  // Interview API
+  // Category API
+  getInterviewCategories: () => http<InterviewCategory[]>('/interview/categories/'),
+  getInterviewCategory: (id: number) => http<InterviewCategory>(`/interview/categories/${id}`),
+  createInterviewCategory: (data: InterviewCategoryCreate) => http<InterviewCategory>('/interview/categories/', { method: 'POST', body: JSON.stringify(data) }),
+  updateInterviewCategory: (id: number, data: InterviewCategoryUpdate) => http<InterviewCategory>(`/interview/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteInterviewCategory: (id: number) => http<void>(`/interview/categories/${id}`, { method: 'DELETE' }),
+
+  // Question API
+  getInterviewQuestions: (params?: { skip?: number; limit?: number; category_id?: number | null }) => {
+    const query = new URLSearchParams();
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.category_id != null) query.set('category_id', String(params.category_id));
+    const qs = query.toString();
+    return http<InterviewQuestion[]>(`/interview/questions/${qs ? `?${qs}` : ''}`);
+  },
+  getInterviewQuestion: (id: number) => http<InterviewQuestion>(`/interview/questions/${id}`),
+  createInterviewQuestion: (data: InterviewQuestionCreate) => http<InterviewQuestion>('/interview/questions/', { method: 'POST', body: JSON.stringify(data) }),
+  updateInterviewQuestion: (id: number, data: InterviewQuestionUpdate) => http<InterviewQuestion>(`/interview/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteInterviewQuestion: (id: number) => http<void>(`/interview/questions/${id}`, { method: 'DELETE' }),
+
+  // Answer API
+  getInterviewAnswersByQuestion: (questionId: number) => http<InterviewAnswer[]>(`/interview/questions/${questionId}/answers/`),
+  getInterviewAnswer: (id: number) => http<InterviewAnswer>(`/interview/answers/${id}`),
+  createInterviewAnswer: (data: InterviewAnswerCreate) => http<InterviewAnswer>('/interview/answers/', { method: 'POST', body: JSON.stringify(data) }),
+  updateInterviewAnswer: (id: number, data: InterviewAnswerUpdate) => http<InterviewAnswer>(`/interview/answers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteInterviewAnswer: (id: number) => http<void>(`/interview/answers/${id}`, { method: 'DELETE' }),
+
+  // Opinion API
+  // Category API
+  getOpinionCategories: () => http<OpinionCategory[]>('/opinion/categories/'),
+  getOpinionCategory: (id: number) => http<OpinionCategory>(`/opinion/categories/${id}`),
+  createOpinionCategory: (data: OpinionCategoryCreate) => http<OpinionCategory>('/opinion/categories/', { method: 'POST', body: JSON.stringify(data) }),
+  updateOpinionCategory: (id: number, data: OpinionCategoryUpdate) => http<OpinionCategory>(`/opinion/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteOpinionCategory: (id: number) => http<void>(`/opinion/categories/${id}`, { method: 'DELETE' }),
+
+  // Opinion API
+  getOpinions: (params?: { skip?: number; limit?: number; category_id?: number | null }) => {
+    const query = new URLSearchParams();
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.category_id != null) query.set('category_id', String(params.category_id));
+    const qs = query.toString();
+    return http<Opinion[]>(`/opinion/opinions/${qs ? `?${qs}` : ''}`);
+  },
+  getOpinion: (id: number) => http<Opinion>(`/opinion/opinions/${id}`),
+  createOpinion: (data: OpinionCreate) => http<Opinion>('/opinion/opinions/', { method: 'POST', body: JSON.stringify(data) }),
+  updateOpinion: (id: number, data: OpinionUpdate) => http<Opinion>(`/opinion/opinions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteOpinion: (id: number) => http<void>(`/opinion/opinions/${id}`, { method: 'DELETE' }),
 };
 
 

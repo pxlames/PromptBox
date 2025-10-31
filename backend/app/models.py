@@ -111,3 +111,59 @@ class Task(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
+# 面试题库相关模型
+class InterviewCategory(Base):
+    __tablename__ = "interview_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False, index=True)  # 分类名称
+    order = Column(Integer, default=0, nullable=False)  # 排序顺序
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class InterviewQuestion(Base):
+    __tablename__ = "interview_questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    description = Column(Text, nullable=False)  # 问题描述
+    category_id = Column(Integer, ForeignKey("interview_categories.id"), nullable=True, index=True)  # 分类ID
+    company = Column(String(200), nullable=True, default="")  # 公司
+    tags = Column(String(500), nullable=True, default="")  # 标签
+    difficulty = Column(String(20), nullable=False, default="中等")  # 难度：简单/中等/困难
+    round = Column(String(100), nullable=True, default="")  # 面试轮次
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class InterviewAnswer(Base):
+    __tablename__ = "interview_answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    question_id = Column(Integer, ForeignKey("interview_questions.id"), nullable=False, index=True)  # 关联的问题ID
+    content = Column(Text, nullable=False)  # 答案内容
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+# 观点记录相关模型
+class OpinionCategory(Base):
+    __tablename__ = "opinion_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False, index=True)  # 分类名称
+    order = Column(Integer, default=0, nullable=False)  # 排序顺序
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class Opinion(Base):
+    __tablename__ = "opinions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    description = Column(Text, nullable=False)  # 观点描述
+    category_id = Column(Integer, ForeignKey("opinion_categories.id"), nullable=True, index=True)  # 分类ID
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
