@@ -430,3 +430,4 @@ function getCategoryName(id: number | null) {
 .opinion-select:focus{border-color:#5d78e6;}
 </style>
 
+
