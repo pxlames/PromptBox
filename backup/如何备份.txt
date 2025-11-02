@@ -1,0 +1,1 @@
+mysqldump -u root -p --default-character-set=utf8mb4 prompt > "D:\project\prompt\backup\25_11_2.sql"

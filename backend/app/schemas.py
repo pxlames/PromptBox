@@ -387,3 +387,27 @@ class OpinionOut(OpinionBase):
         orm_mode = True
 
 
+# 聊天历史相关schemas
+class ChatHistoryBase(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=200)
+    messages: str  # JSON格式的消息列表
+
+
+class ChatHistoryCreate(ChatHistoryBase):
+    pass
+
+
+class ChatHistoryUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=200)
+    messages: Optional[str] = None
+
+
+class ChatHistoryOut(ChatHistoryBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+

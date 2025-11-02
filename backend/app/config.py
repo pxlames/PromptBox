@@ -41,3 +41,14 @@ def get_siliconflow_config() -> dict:
     }
 
 
+def get_doubao_config() -> dict:
+    """获取豆包配置"""
+    cfg = load_config()
+    doubao = cfg.get("doubao", {})
+    return {
+        "api_key": doubao.get("api_key", "") or os.environ.get("ARK_API_KEY", ""),
+        "base_url": doubao.get("base_url", "https://ark.cn-beijing.volces.com/api/v3"),
+        "model": doubao.get("model", "doubao-seed-1-6-251015")
+    }
+
+

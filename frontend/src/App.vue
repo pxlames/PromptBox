@@ -7,6 +7,7 @@ import OKRManager from './components/OKRManager.vue'
 import AlgoPractice from './components/AlgoPractice.vue'
 import InterviewBank from './components/InterviewBank.vue'
 import OpinionBank from './components/OpinionBank.vue'
+import AiAssistant from './components/AiAssistant.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -115,6 +116,9 @@ function switchTab(tabId) {
         </div>
       </div>
     </main>
+    
+    <!-- AI助手组件 -->
+    <AiAssistant />
   </div>
 </template>
 

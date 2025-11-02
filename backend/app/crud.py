@@ -770,6 +770,24 @@ def list_opinions(
     return list(db.execute(stmt).scalars().all())
 
 
+def get_random_opinion(db: Session, category_id: Optional[int] = None) -> Optional[models.Opinion]:
+    """随机获取一个观点"""
+    import random
+    
+    stmt = select(models.Opinion)
+    if category_id is not None:
+        stmt = stmt.where(models.Opinion.category_id == category_id)
+    
+    # 获取所有符合条件的观点
+    all_opinions = list(db.execute(stmt).scalars().all())
+    
+    if not all_opinions:
+        return None
+    
+    # 使用随机数选择一个观点
+    return random.choice(all_opinions)
+
+
 def update_opinion(db: Session, opinion_id: int, data: schemas.OpinionUpdate) -> Optional[models.Opinion]:
     opinion = db.get(models.Opinion, opinion_id)
     if not opinion:
@@ -789,6 +807,84 @@ def delete_opinion(db: Session, opinion_id: int) -> bool:
     if not opinion:
         return False
     db.delete(opinion)
+    db.commit()
+    return True
+
+
+# ChatHistory CRUD
+def create_chat_history(db: Session, data: schemas.ChatHistoryCreate) -> models.ChatHistory:
+    chat_history = models.ChatHistory(
+        title=data.title,
+        messages=data.messages
+    )
+    db.add(chat_history)
+    db.commit()
+    db.refresh(chat_history)
+    return chat_history
+
+
+def get_chat_history(db: Session, history_id: int) -> Optional[models.ChatHistory]:
+    return db.get(models.ChatHistory, history_id)
+
+
+def list_chat_histories(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    q: Optional[str] = None
+) -> List[models.ChatHistory]:
+    stmt = select(models.ChatHistory)
+    
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(
+            (models.ChatHistory.title.like(like)) |
+            (models.ChatHistory.messages.like(like))
+        )
+    
+    stmt = stmt.order_by(models.ChatHistory.updated_at.desc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def count_chat_histories(db: Session, q: Optional[str] = None) -> int:
+    stmt = select(func.count(models.ChatHistory.id))
+    
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(
+            (models.ChatHistory.title.like(like)) |
+            (models.ChatHistory.messages.like(like))
+        )
+    
+    return db.execute(stmt).scalar_one()
+
+
+def update_chat_history(
+    db: Session,
+    history_id: int,
+    data: schemas.ChatHistoryUpdate
+) -> Optional[models.ChatHistory]:
+    chat_history = db.get(models.ChatHistory, history_id)
+    if not chat_history:
+        return None
+    
+    if data.title is not None:
+        chat_history.title = data.title
+    if data.messages is not None:
+        chat_history.messages = data.messages
+    
+    chat_history.updated_at = datetime.now(timezone.utc)
+    db.add(chat_history)
+    db.commit()
+    db.refresh(chat_history)
+    return chat_history
+
+
+def delete_chat_history(db: Session, history_id: int) -> bool:
+    chat_history = db.get(models.ChatHistory, history_id)
+    if not chat_history:
+        return False
+    db.delete(chat_history)
     db.commit()
     return True
 

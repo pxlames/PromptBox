@@ -456,6 +456,159 @@ export const api = {
   createOpinion: (data: OpinionCreate) => http<Opinion>('/opinion/opinions/', { method: 'POST', body: JSON.stringify(data) }),
   updateOpinion: (id: number, data: OpinionUpdate) => http<Opinion>(`/opinion/opinions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteOpinion: (id: number) => http<void>(`/opinion/opinions/${id}`, { method: 'DELETE' }),
+
+  // AI Assistant API
+  chat: async (messages: Array<{ role: string; content: string; image_urls?: string[] }>, stream: boolean = false, options?: { reasoning_effort?: string; temperature?: number; max_tokens?: number }) => {
+    if (stream) {
+      throw new Error('Use chatStream for streaming responses');
+    }
+    return http<{ content: string; reasoning_content: string }>('/assistant/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        messages,
+        stream: false,
+        reasoning_effort: options?.reasoning_effort || 'medium',
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.max_tokens || null
+      })
+    });
+  },
+  chatStream: async (
+    messages: Array<{ role: string; content: string; image_urls?: string[] }>,
+    onChunk: (chunk: string) => void,
+    onDone: () => void,
+    onError: (error: string) => void,
+    options?: { reasoning_effort?: string; temperature?: number; max_tokens?: number }
+  ) => {
+    try {
+      const response = await fetch(`/api/assistant/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages,
+          reasoning_effort: options?.reasoning_effort || 'medium',
+          temperature: options?.temperature ?? 0.7,
+          max_tokens: options?.max_tokens || null
+        })
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || response.statusText);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (!reader) {
+        throw new Error('无法读取响应流');
+      }
+
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim();
+          
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6);
+            
+            if (dataStr === '[DONE]') {
+              continue;
+            }
+
+            try {
+              const data = JSON.parse(dataStr);
+              
+              if (data.error) {
+                onError(data.error);
+                return;
+              }
+              
+              if (data.done) {
+                onDone();
+                return;
+              }
+              
+              if (data.content) {
+                onChunk(data.content);
+              }
+            } catch (e) {
+              // 忽略JSON解析错误
+              console.warn('Failed to parse SSE data:', dataStr);
+            }
+          }
+        }
+        
+        buffer = lines[lines.length - 1];
+      }
+    } catch (e: any) {
+      onError(e?.message || '流式请求失败');
+    }
+  },
+  uploadAssistantImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const res = await fetch(`/api/assistant/upload-image`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || res.statusText);
+    }
+    
+    return (await res.json()) as { filename: string; url: string };
+  },
+
+  // Chat History API
+  saveChatHistory: (title: string | null, messages: Array<{ role: string; content: string; image_urls?: string[] }>) => {
+    return http<{ id: number; title: string | null; created_at: string; updated_at: string }>('/assistant/history', {
+      method: 'POST',
+      body: JSON.stringify({ title, messages })
+    });
+  },
+  getChatHistories: (params?: { skip?: number; limit?: number; q?: string | null }) => {
+    const query = new URLSearchParams();
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.q) query.set('q', params.q);
+    const qs = query.toString();
+    return http<Array<{ id: number; title: string | null; created_at: string; updated_at: string }>>(`/assistant/history${qs ? `?${qs}` : ''}`);
+  },
+  getChatHistory: (id: number) => {
+    return http<{ id: number; title: string | null; messages: Array<{ role: string; content: string; image_urls?: string[] }>; created_at: string; updated_at: string }>(`/assistant/history/${id}`);
+  },
+  updateChatHistory: (id: number, title: string | null, messages: Array<{ role: string; content: string; image_urls?: string[] }>) => {
+    return http<{ id: number; title: string | null; created_at: string; updated_at: string }>(`/assistant/history/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title, messages })
+    });
+  },
+  deleteChatHistory: (id: number) => {
+    return http<{ success: boolean }>(`/assistant/history/${id}`, { method: 'DELETE' });
+  },
+
+  // Random Opinion API (筛子功能)
+  getRandomOpinion: (categoryId?: number | null) => {
+    const query = new URLSearchParams();
+    if (categoryId != null) query.set('category_id', String(categoryId));
+    const qs = query.toString();
+    return http<{ id: number; description: string; category_id: number | null }>(`/assistant/random-opinion${qs ? `?${qs}` : ''}`);
+  },
 };
 
 

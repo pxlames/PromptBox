@@ -167,3 +167,14 @@ class Opinion(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
+# AI助手聊天历史相关模型
+class ChatHistory(Base):
+    __tablename__ = "chat_histories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=True)  # 对话标题（可自动生成）
+    messages = Column(Text, nullable=False)  # 消息列表（JSON格式）
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
