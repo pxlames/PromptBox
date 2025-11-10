@@ -9,13 +9,13 @@
       @click="openDialog"
       :title="`AI助手 (${shortcutText}) - 可拖动`"
     >
-      <span class="assistant-icon">🤖</span>
+      <span class="assistant-icon" :class="{ 'shaking': isLoading }">相信</span>
     </button>
 
     <!-- AI助手对话框 -->
     <transition name="dialog-fade">
       <div 
-        v-if="isOpen" 
+        v-if="isOpen && !showPostCenter"
         class="assistant-dialog"
         :style="{ 
           left: dialogPosition.x + 'px', 
@@ -37,6 +37,13 @@
               v-if="!showHistorySidebar"
             >
               📜
+            </button>
+            <button 
+              class="post-center-button"
+              @click="goToPostCenter"
+              title="查看高赞内容"
+            >
+              👍
             </button>
             <span class="dialog-icon">🤖</span>
             <h3 class="dialog-title">{{ currentHistoryTitle || 'AI助手' }}</h3>
@@ -106,9 +113,9 @@
               :key="index"
               :class="['message', `message-${message.role}`]"
             >
-              <div class="message-avatar">
+              <div class="message-avatar" :class="{ 'shaking': isLoading && message.role === 'assistant' && index === messages.length - 1 }">
                 <span v-if="message.role === 'user'">👤</span>
-                <span v-else>🤖</span>
+                <span v-else>相信</span>
               </div>
               <div class="message-content">
                 <div v-if="message.image_urls && message.image_urls.length > 0" class="message-images">
@@ -121,7 +128,26 @@
                     @click="previewImage(imgUrl)"
                   />
                 </div>
-                <div v-if="message.content" class="message-text" v-html="formatMessage(message.content)"></div>
+                <!-- 如果是空的assistant消息且正在加载，显示输入指示器 -->
+                <div v-if="message.role === 'assistant' && !message.content && isLoading && index === messages.length - 1" class="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div v-if="message.content" class="message-text-wrapper">
+                  <div class="message-text" v-html="formatMessage(message.content)"></div>
+                  <!-- 点赞按钮（仅AI回复显示） -->
+                  <button 
+                    v-if="message.role === 'assistant' && message.content"
+                    class="like-button"
+                    :class="{ 'liked': message.liked }"
+                    @click="toggleLike(index)"
+                    :title="message.liked ? '取消点赞' : '点赞'"
+                  >
+                    {{ message.liked ? '👍' : '👍' }}
+                    <span v-if="message.liked" class="like-text">已点赞</span>
+                  </button>
+                </div>
                 <div v-if="message.role === 'assistant' && message.reasoning_content" class="message-reasoning">
                   <details>
                     <summary>思考过程</summary>
@@ -131,10 +157,10 @@
               </div>
             </div>
             
-            <!-- 正在输入指示器 -->
-            <div v-if="isLoading" class="message message-assistant">
-              <div class="message-avatar">
-                <span>🤖</span>
+            <!-- 正在输入指示器（仅当没有消息或最后一条消息不是assistant消息时显示） -->
+            <div v-if="isLoading && (messages.length === 0 || messages[messages.length - 1].role !== 'assistant')" class="message message-assistant">
+              <div class="message-avatar shaking">
+                <span>相信</span>
               </div>
               <div class="message-content">
                 <div class="typing-indicator">
@@ -206,6 +232,23 @@
         </div>
       </div>
     </transition>
+    
+    <!-- 帖子中心视图 -->
+    <transition name="dialog-fade">
+      <div 
+        v-if="isOpen && showPostCenter"
+        class="assistant-dialog"
+        :style="{ 
+          left: dialogPosition.x + 'px', 
+          top: dialogPosition.y + 'px',
+          width: dialogSize.width + 'px',
+          height: dialogSize.height + 'px'
+        }"
+      >
+        <LikePostCenter @back="showPostCenter = false" />
+      </div>
+    </transition>
+    
 
     <!-- 图片预览模态框 -->
     <transition name="modal-fade">
@@ -219,6 +262,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { api } from '../api'
+import LikePostCenter from './LikePostCenter.vue'
 
 const isOpen = ref(false)
 const messages = ref([])
@@ -244,6 +288,9 @@ let saveTimer = null
 // 筛子功能相关
 const rollingDice = ref(false)
 const selectedOpinion = ref(null)
+
+// 高赞帖子中心相关
+const showPostCenter = ref(false)
 
 // 位置状态 - 先从 localStorage 读取，如果没有则使用默认位置
 function getInitialPositions() {
@@ -376,6 +423,7 @@ function closeDialog() {
   saveCurrentChatHistory()
   isOpen.value = false
   showHistorySidebar.value = false
+  showPostCenter.value = false
   // 可选择：清空输入但不重置历史消息
   // inputText.value = ''
   // pendingImages.value = []
@@ -427,7 +475,10 @@ async function loadHistory(historyId) {
       role: msg.role,
       content: msg.content,
       image_urls: msg.image_urls || [],
-      reasoning_content: ''
+      reasoning_content: '',
+      liked: false,
+      likeRecordId: null,
+      userQuestion: ''
     }))
     currentHistoryId.value = history.id
     currentHistoryTitle.value = history.title
@@ -537,6 +588,37 @@ function formatTime(timeStr) {
   }
 }
 
+// 跳转到帖子中心
+function goToPostCenter() {
+  showPostCenter.value = true
+}
+
+// 点赞功能
+async function toggleLike(messageIndex) {
+  const message = messages.value[messageIndex]
+  if (!message || message.role !== 'assistant' || !message.content) return
+  
+  try {
+    if (message.liked) {
+      // 取消点赞 - 删除点赞记录
+      if (message.likeRecordId) {
+        await api.deleteLikeRecord(message.likeRecordId)
+      }
+      message.liked = false
+      message.likeRecordId = null
+    } else {
+      // 点赞 - 创建点赞记录
+      const userQuestion = message.userQuestion || (messageIndex > 0 ? messages.value[messageIndex - 1].content : '')
+      const result = await api.createLikeRecord(userQuestion, message.content)
+      message.liked = true
+      message.likeRecordId = result.id
+    }
+  } catch (error) {
+    console.error('Failed to toggle like:', error)
+    alert('操作失败：' + (error.message || '未知错误'))
+  }
+}
+
 // 筛子功能：随机获取观点
 async function rollDice() {
   if (rollingDice.value || isLoading.value) return
@@ -575,17 +657,22 @@ async function rollDice() {
 async function sendMessage() {
   if (isLoading.value) return
   
-  const text = inputText.value.trim()
+  // 保留原始格式，只去掉首尾空白，保留中间的换行和格式
+  const text = inputText.value.trimEnd() // 只去掉末尾空白，保留开头格式和所有换行
   const images = [...pendingImages.value]
   
-  if (!text && images.length === 0) return
+  if (!text.trim() && images.length === 0) return // 检查去除空白后是否为空
   
-  // 添加用户消息
+  // 添加用户消息（保留所有换行和格式）
   messages.value.push({
     role: 'user',
     content: text,
-    image_urls: images.map(img => img.url)
+    image_urls: images.map(img => img.url),
+    liked: false
   })
+  
+  // 保存用户问题（用于点赞时使用）
+  const userQuestion = text
   
   // 清空输入
   inputText.value = ''
@@ -609,7 +696,10 @@ async function sendMessage() {
   const assistantMessage = {
     role: 'assistant',
     content: '',
-    reasoning_content: ''
+    reasoning_content: '',
+    liked: false,
+    likeRecordId: null,
+    userQuestion: userQuestion  // 保存对应的用户问题
   }
   
   messages.value.push(assistantMessage)
@@ -625,25 +715,25 @@ async function sendMessage() {
         // 通过索引更新，确保Vue能检测到变化
         if (messages.value[assistantIndex] && chunk) {
           messages.value[assistantIndex].content += chunk
-          // 立即滚动到底部（使用requestAnimationFrame确保DOM更新）
-          requestAnimationFrame(() => {
-            scrollToBottom()
-          })
+          // 仅在用户已经在底部附近时自动滚动（使用节流优化）
+          scrollToBottom(false)
         }
       },
       async () => {
         isLoading.value = false
-        scrollToBottom()
+        // AI回复完成后，强制滚动到底部
+        scrollToBottom(true)
         
         // 自动保存聊天历史
         await saveCurrentChatHistory()
+        
       },
       (error) => {
         isLoading.value = false
         if (messages.value[assistantIndex]) {
           messages.value[assistantIndex].content = `❌ 错误: ${error}`
         }
-        scrollToBottom()
+        scrollToBottom(true)
       }
     )
   } catch (error) {
@@ -724,18 +814,280 @@ function getImageUrl(url) {
   return url.startsWith('/') ? `/api${url}` : `/api/uploads/${url}`
 }
 
-// 格式化消息内容（支持Markdown，简单处理）
+// 格式化消息内容（完整Markdown渲染）
 function formatMessage(content) {
   if (!content) return ''
   
-  // 简单的Markdown转换（可以后续使用marked等库）
-  let formatted = content
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`(.*?)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>')
+  let html = content
   
-  return formatted
+  // 先处理代码块（避免被其他规则影响），使用特殊标记
+  const codeBlocks = []
+  html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+    const id = `__CODE_BLOCK_${codeBlocks.length}__`
+    codeBlocks.push(code.trim())
+    return id
+  })
+  
+  // 转义HTML特殊字符（但保留代码块标记）
+  html = html
+    .replace(/&(?!__CODE_BLOCK_)/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  
+  // 行内代码（`...`），但要避免匹配已标记的代码块
+  html = html.replace(/`([^`\n]+)`/g, (match, code) => {
+    // 转义代码内容中的HTML
+    const escapedCode = code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+    return `<code>${escapedCode}</code>`
+  })
+  
+  // 标题（# ## ### 等）
+  html = html.replace(/^(#{1,6})\s+(.+)$/gm, (match, hashes, title) => {
+    const level = hashes.length
+    return `<h${level}>${title}</h${level}>`
+  })
+  
+  // 链接（[text](url)）
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+  
+  // 粗体（**...**）
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  
+  // 斜体（*...*，避免与粗体冲突）- 先处理粗体，再处理单独的*
+  // 因为粗体已经处理过，这里只处理单独的*
+  html = html.replace(/\*([^*<]+)\*/g, (match, text) => {
+    // 检查是否在粗体或代码标签中
+    if (match.includes('<strong>') || match.includes('<code>')) {
+      return match
+    }
+    return `<em>${text}</em>`
+  })
+  
+  // 水平线（--- 或 ***）
+  html = html.replace(/^[-*]{3,}$/gm, '<hr>')
+  
+  // 处理表格（必须在列表处理之前）
+  // 表格格式：| 列1 | 列2 | ... |
+  //         |------|-----|-----|
+  //         | 数据 | 数据 | ... |
+  const tableLines = []
+  const allLines = html.split('\n')
+  let inTable = false
+  let tableStartIndex = -1
+  
+  for (let i = 0; i < allLines.length; i++) {
+    const line = allLines[i].trim()
+    const isTableRow = line.startsWith('|') && line.endsWith('|')
+    const isSeparatorRow = isTableRow && /^[\|\s\-:]+$/.test(line)
+    
+    if (isTableRow && !isSeparatorRow) {
+      if (!inTable) {
+        inTable = true
+        tableStartIndex = i
+      }
+      tableLines.push(allLines[i])
+    } else if (isSeparatorRow && inTable) {
+      // 分隔行，跳过但保持inTable状态
+      continue
+    } else {
+      // 非表格行，如果之前在表格中，结束表格
+      if (inTable && tableLines.length > 0) {
+        // 处理表格
+        const tableHtml = parseTable(tableLines)
+        // 替换表格行的HTML
+        for (let j = tableStartIndex; j < i; j++) {
+          allLines[j] = ''
+        }
+        allLines[tableStartIndex] = tableHtml
+        tableLines.length = 0
+        inTable = false
+      }
+    }
+  }
+  
+  // 处理最后的表格
+  if (inTable && tableLines.length > 0) {
+    const tableHtml = parseTable(tableLines)
+    for (let j = tableStartIndex; j < allLines.length; j++) {
+      allLines[j] = ''
+    }
+    allLines[tableStartIndex] = tableHtml
+  }
+  
+  html = allLines.join('\n')
+  
+  // 表格解析函数
+  function parseTable(lines) {
+    if (lines.length === 0) return ''
+    
+    // 第一行是表头
+    const headerLine = lines[0]
+    const headers = headerLine.split('|')
+      .map(h => h.trim())
+      .filter(h => h && !h.match(/^[\s\-:]+$/)) // 过滤掉分隔行
+    
+    if (headers.length === 0) return ''
+    
+    let tableHtml = '<table><thead><tr>'
+    headers.forEach(header => {
+      tableHtml += `<th>${header}</th>`
+    })
+    tableHtml += '</tr></thead><tbody>'
+    
+    // 处理数据行（跳过第二行的分隔行）
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim()
+      // 跳过分隔行
+      if (/^[\|\s\-:]+$/.test(line)) continue
+      
+      const cells = line.split('|')
+        .map(c => c.trim())
+        .filter((c, idx, arr) => {
+          // 移除首尾空元素（因为|开头和结尾会产生空元素）
+          return c
+        })
+      
+      if (cells.length > 0) {
+        tableHtml += '<tr>'
+        headers.forEach((_, index) => {
+          const cell = cells[index] || ''
+          tableHtml += `<td>${cell}</td>`
+        })
+        tableHtml += '</tr>'
+      }
+    }
+    
+    tableHtml += '</tbody></table>'
+    return tableHtml
+  }
+  
+  // 无序列表（- 或 * 开头，但不在代码中）
+  const lines = html.split('\n')
+  const processed = []
+  let inList = false
+  let listItems = []
+  
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i]
+    const trimmed = line.trim()
+    
+    // 检查是否是列表项（- 或 * 开头）
+    const listMatch = trimmed.match(/^[-*]\s+(.+)$/)
+    if (listMatch) {
+      if (!inList) {
+        inList = true
+      }
+      listItems.push(`<li>${listMatch[1]}</li>`)
+      continue
+    }
+    
+    // 检查是否是有序列表
+    const orderedMatch = trimmed.match(/^\d+\.\s+(.+)$/)
+    if (orderedMatch) {
+      if (!inList) {
+        inList = true
+      }
+      listItems.push(`<li>${orderedMatch[1]}</li>`)
+      continue
+    }
+    
+    // 如果不是列表项，先处理之前的列表
+    if (inList && listItems.length > 0) {
+      processed.push(`<ul>${listItems.join('')}</ul>`)
+      listItems = []
+      inList = false
+    }
+    
+    // 如果是空行，跳过或结束段落
+    if (!trimmed) {
+      processed.push('')
+      continue
+    }
+    
+    // 如果已经是HTML标签，直接添加
+    if (/^<(h[1-6]|p|pre|hr|blockquote)/.test(trimmed)) {
+      processed.push(trimmed)
+    } else {
+      // 普通文本行
+      processed.push(trimmed)
+    }
+  }
+  
+  // 处理最后的列表
+  if (inList && listItems.length > 0) {
+    processed.push(`<ul>${listItems.join('')}</ul>`)
+  }
+  
+  html = processed.join('\n')
+  
+  // 恢复代码块
+  codeBlocks.forEach((code, index) => {
+    const escapedCode = code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+    html = html.replace(`__CODE_BLOCK_${index}__`, `<pre><code>${escapedCode}</code></pre>`)
+  })
+  
+  // 处理段落：保留换行格式
+  const finalLines = html.split('\n')
+  const finalProcessed = []
+  let currentPara = []
+
+  for (let i = 0; i < finalLines.length; i++) {
+    const line = finalLines[i]
+    
+    if (!line.trim()) {
+      // 空行，结束当前段落并保留空行
+      if (currentPara.length > 0) {
+        const paraText = currentPara.join('<br>') // 用 <br> 连接，保留换行
+        if (/^<(h[1-6]|pre|ul|ol|hr|blockquote|table)/.test(paraText)) {
+          finalProcessed.push(paraText)
+        } else {
+          finalProcessed.push(`<p>${paraText}</p>`)
+        }
+        currentPara = []
+      }
+      // 保留空行，添加一个空段落
+      if (i < finalLines.length - 1) { // 避免最后一个空行
+        finalProcessed.push('<p><br></p>')
+      }
+      continue
+    }
+    
+    // 如果行以块级元素开头，单独处理
+    if (/^<(h[1-6]|pre|ul|ol|hr|blockquote|table)/.test(line)) {
+      if (currentPara.length > 0) {
+        const paraText = currentPara.join('<br>') // 用 <br> 连接，保留换行
+        if (/^<(h[1-6]|pre|ul|ol|hr|blockquote|table)/.test(paraText)) {
+          finalProcessed.push(paraText)
+        } else {
+          finalProcessed.push(`<p>${paraText}</p>`)
+        }
+        currentPara = []
+      }
+      finalProcessed.push(line)
+    } else {
+      currentPara.push(line)
+    }
+  }
+
+  // 处理最后的段落
+  if (currentPara.length > 0) {
+    const paraText = currentPara.join('<br>') // 用 <br> 连接，保留换行
+    if (/^<(h[1-6]|pre|ul|ol|hr|blockquote|table)/.test(paraText)) {
+      finalProcessed.push(paraText)
+    } else {
+      finalProcessed.push(`<p>${paraText}</p>`)
+    }
+  }
+
+  html = finalProcessed.join('')
+
+  return html
 }
 
 // 调整文本框高度
@@ -746,11 +1098,53 @@ function adjustTextareaHeight() {
   }
 }
 
-// 滚动到底部
-function scrollToBottom() {
-  if (contentRef.value) {
-    contentRef.value.scrollTop = contentRef.value.scrollHeight
+
+// 滚动节流相关
+let scrollTimer = null
+let lastScrollTime = 0
+const SCROLL_THROTTLE = 100 // 100ms节流
+
+// 检查是否在底部附近（允许10px误差）
+function isNearBottom() {
+  if (!contentRef.value) return true
+  const { scrollTop, scrollHeight, clientHeight } = contentRef.value
+  return scrollHeight - scrollTop - clientHeight < 10
+}
+
+// 滚动到底部（仅在用户已经在底部附近时）
+function scrollToBottom(force = false) {
+  if (!contentRef.value) return
+  // 如果用户手动滚动到顶部或中间，且不是强制滚动，则不自动滚动
+  if (!force && !isNearBottom()) {
+    return
   }
+  
+  // 强制滚动时直接执行，不需要节流
+  if (force) {
+    contentRef.value.scrollTop = contentRef.value.scrollHeight
+    return
+  }
+  
+  // 非强制滚动时使用节流，避免频繁操作DOM
+  const now = Date.now()
+  if (now - lastScrollTime < SCROLL_THROTTLE) {
+    // 如果距离上次滚动时间太近，清除之前的定时器，设置新的定时器
+    if (scrollTimer) {
+      clearTimeout(scrollTimer)
+    }
+    scrollTimer = setTimeout(() => {
+      if (contentRef.value && isNearBottom()) {
+        contentRef.value.scrollTop = contentRef.value.scrollHeight
+      }
+      lastScrollTime = Date.now()
+      scrollTimer = null
+    }, SCROLL_THROTTLE - (now - lastScrollTime))
+    return
+  }
+  
+  // 可以直接滚动
+  contentRef.value.scrollTop = contentRef.value.scrollHeight
+  lastScrollTime = now
 }
 
 // 拖动触发器
@@ -927,6 +1321,7 @@ function handleResize() {
 // 监听对话框打开状态，添加全局快捷键
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown)
+  
   window.addEventListener('resize', handleResize)
   
   // 位置已在初始化时从 localStorage 读取，这里只需要监听窗口大小变化
@@ -947,6 +1342,13 @@ function savePositions() {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
+  
+  // 清理滚动定时器
+  if (scrollTimer) {
+    clearTimeout(scrollTimer)
+    scrollTimer = null
+  }
+  
   window.removeEventListener('resize', handleResize)
   
   // 保存位置到localStorage
@@ -1026,7 +1428,6 @@ document.addEventListener('visibilitychange', () => {
   justify-content: center;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1001;
-  user-select: none;
   touch-action: none;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -1045,8 +1446,27 @@ document.addEventListener('visibilitychange', () => {
 }
 
 .assistant-icon {
-  font-size: 28px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #007AFF;
+  letter-spacing: 0.05em;
   animation: pulse 2s infinite;
+}
+
+.assistant-icon.shaking {
+  animation: shake 0.5s infinite;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px) rotate(-1deg);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px) rotate(1deg);
+  }
 }
 
 @keyframes pulse {
@@ -1071,7 +1491,6 @@ document.addEventListener('visibilitychange', () => {
   flex-direction: column;
   overflow: hidden;
   z-index: 1001;
-  user-select: none;
   resize: none;
 }
 
@@ -1149,6 +1568,31 @@ document.addEventListener('visibilitychange', () => {
   transform: scale(0.95);
 }
 
+.post-center-button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(0, 122, 255, 0.1);
+  border-radius: 8px;
+  color: #007AFF;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.post-center-button:hover {
+  background: rgba(0, 122, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.post-center-button:active {
+  transform: scale(0.95);
+}
+
 .dialog-icon {
   font-size: 24px;
 }
@@ -1191,6 +1635,10 @@ document.addEventListener('visibilitychange', () => {
   overflow-y: auto;
   padding: 20px;
   background: rgba(248, 248, 250, 0.5);
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 }
 
 .messages-container {
@@ -1228,9 +1676,21 @@ document.addEventListener('visibilitychange', () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 14px;
+  font-weight: 600;
   flex-shrink: 0;
   border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.message-avatar.shaking {
+  animation: shake 0.5s infinite;
+  background: rgba(0, 122, 255, 0.1);
+  border-color: rgba(0, 122, 255, 0.3);
+}
+
+.message-avatar span {
+  display: block;
+  letter-spacing: 0.05em;
 }
 
 .message-user .message-avatar {
@@ -1241,9 +1701,17 @@ document.addEventListener('visibilitychange', () => {
 .message-content {
   flex: 1;
   max-width: calc(100% - 48px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 }
 
 .message-user .message-content {
+  align-items: flex-end;
   text-align: right;
 }
 
@@ -1274,16 +1742,31 @@ document.addEventListener('visibilitychange', () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
+.message-text-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 80%;
+}
+
 .message-text {
-  background: rgba(255, 255, 255, 0.9);
+  display: inline-block;
+  max-width: 100%;
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   padding: 12px 16px;
   border-radius: 18px;
   line-height: 1.6;
   word-wrap: break-word;
+  word-break: break-word;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.04);
+  text-align: left;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  cursor: text;
 }
 
 .message-user .message-text {
@@ -1291,6 +1774,7 @@ document.addEventListener('visibilitychange', () => {
   color: white;
   border: none;
   box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+  text-align: left;
 }
 
 .message-text :deep(code) {
@@ -1304,6 +1788,235 @@ document.addEventListener('visibilitychange', () => {
 .message-user .message-text :deep(code) {
   background: rgba(255, 255, 255, 0.2);
 }
+
+.message-text :deep(pre) {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.message-text :deep(pre code) {
+  background: transparent;
+  padding: 0;
+}
+
+.message-user .message-text :deep(pre) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.message-text :deep(h1),
+.message-text :deep(h2),
+.message-text :deep(h3),
+.message-text :deep(h4),
+.message-text :deep(h5),
+.message-text :deep(h6) {
+  margin: 12px 0 8px 0;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.message-text :deep(h1) { font-size: 1.5em; }
+.message-text :deep(h2) { font-size: 1.3em; }
+.message-text :deep(h3) { font-size: 1.15em; }
+
+.message-text :deep(ul),
+.message-text :deep(ol) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.message-text :deep(li) {
+  margin: 4px 0;
+}
+
+.message-text :deep(p) {
+  margin: 8px 0;
+}
+
+.message-text :deep(blockquote) {
+  border-left: 3px solid rgba(0, 122, 255, 0.3);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.message-user .message-text :deep(blockquote) {
+  border-left-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.message-text :deep(a) {
+  color: #007AFF;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(0, 122, 255, 0.3);
+}
+
+.message-text :deep(a:hover) {
+  border-bottom-color: #007AFF;
+}
+
+.message-user .message-text :deep(a) {
+  color: rgba(255, 255, 255, 0.9);
+  border-bottom-color: rgba(255, 255, 255, 0.5);
+}
+
+.message-text :deep(hr) {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  margin: 16px 0;
+}
+
+.message-user .message-text :deep(hr) {
+  border-top-color: rgba(255, 255, 255, 0.3);
+}
+
+.message-text :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.9em;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.message-text :deep(table thead) {
+  background: rgba(0, 122, 255, 0.08);
+}
+
+.message-text :deep(table th) {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #1d1d1f;
+  border-bottom: 2px solid rgba(0, 122, 255, 0.2);
+  font-size: 0.95em;
+}
+
+.message-text :deep(table td) {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  color: #1d1d1f;
+  line-height: 1.5;
+}
+
+.message-text :deep(table tr:last-child td) {
+  border-bottom: none;
+}
+
+.message-text :deep(table tbody tr:hover) {
+  background: rgba(0, 122, 255, 0.03);
+}
+
+.message-text :deep(table tbody tr:nth-child(even)) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.message-text :deep(table tbody tr:nth-child(even):hover) {
+  background: rgba(0, 122, 255, 0.05);
+}
+
+.message-user .message-text :deep(table) {
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.message-user .message-text :deep(table thead) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.message-user .message-text :deep(table th) {
+  color: rgba(255, 255, 255, 0.95);
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+.message-user .message-text :deep(table td) {
+  color: rgba(255, 255, 255, 0.9);
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+
+.message-user .message-text :deep(table tbody tr:hover) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.message-user .message-text :deep(table tbody tr:nth-child(even)) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.message-user .message-text :deep(table tbody tr:nth-child(even):hover) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.like-button {
+  position: absolute;
+  bottom: -8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.like-button:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.like-button:active {
+  transform: translateY(0);
+}
+
+.like-button.liked {
+  background: rgba(0, 122, 255, 0.1);
+  border-color: rgba(0, 122, 255, 0.3);
+  color: #007AFF;
+}
+
+.like-button.liked:hover {
+  background: rgba(0, 122, 255, 0.15);
+}
+
+.like-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #007AFF;
+}
+
+.message-user .message-text-wrapper .like-button {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.message-user .message-text-wrapper .like-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.message-user .message-text-wrapper .like-button.liked {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
 
 .message-reasoning {
   margin-top: 8px;
@@ -1807,7 +2520,7 @@ document.addEventListener('visibilitychange', () => {
   }
   
   .assistant-icon {
-    font-size: 24px;
+    font-size: 14px;
   }
   
   .history-sidebar {

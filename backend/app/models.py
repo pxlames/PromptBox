@@ -178,3 +178,127 @@ class ChatHistory(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
+class LikeRecord(Base):
+    """点赞记录"""
+    __tablename__ = "chat_like_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    question = Column(Text, nullable=False)  # 用户的问题
+    answer = Column(Text, nullable=False)  # AI的回复
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+# 刷题相关模型
+class AlgoCategory(Base):
+    """算法题目分类"""
+    __tablename__ = "algo_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False, index=True)  # 分类名称
+    order = Column(Integer, default=0, nullable=False)  # 排序顺序
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class AlgoProblem(Base):
+    """算法题目"""
+    __tablename__ = "algo_problems"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(500), nullable=False, index=True)  # 题目标题
+    category_id = Column(Integer, ForeignKey("algo_categories.id"), nullable=True, index=True)  # 分类ID
+    difficulty = Column(String(20), nullable=False, default="中等")  # 难度：简单/中等/困难
+    companies = Column(String(500), nullable=True, default="")  # 公司（逗号分隔）
+    tags = Column(String(500), nullable=True, default="")  # 标签（逗号分隔）
+    status = Column(String(20), nullable=False, default="未开始")  # 状态：未开始/已掌握/再复习
+    link = Column(String(1000), nullable=True, default="")  # 题目链接
+    description = Column(Text, nullable=True)  # 题目描述
+    solution = Column(Text, nullable=True)  # 解法思路/代码（保留原有字段，兼容旧数据）
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class AlgoSolution(Base):
+    """算法题解"""
+    __tablename__ = "algo_solutions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    problem_id = Column(Integer, ForeignKey("algo_problems.id"), nullable=False, index=True)  # 关联的题目ID
+    title = Column(String(200), nullable=True, default="")  # 题解标题（如：方法1、动态规划解法等）
+    content = Column(Text, nullable=False)  # 题解内容（代码/思路）
+    language = Column(String(50), nullable=True, default="")  # 编程语言（如：Python、Java、C++）
+    complexity_time = Column(String(100), nullable=True, default="")  # 时间复杂度
+    complexity_space = Column(String(100), nullable=True, default="")  # 空间复杂度
+    order = Column(Integer, default=0, nullable=False)  # 排序顺序
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+# 故事会相关模型
+class StoryCategory(Base):
+    """故事分类"""
+    __tablename__ = "story_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False, index=True)  # 分类名称
+    order = Column(Integer, default=0, nullable=False)  # 排序顺序
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class Story(Base):
+    """故事记录"""
+    __tablename__ = "stories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(500), nullable=False)  # 故事标题
+    content = Column(Text, nullable=False)  # 故事内容
+    category_id = Column(Integer, ForeignKey("story_categories.id"), nullable=True, index=True)  # 分类ID
+    image_paths = Column(Text, nullable=True)  # 图片路径，用逗号分隔
+    essence = Column(Text, nullable=True)  # 透过故事看到的本质
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+# 时间线记录相关模型
+class TimelineTopic(Base):
+    """时间线主题"""
+    __tablename__ = "timeline_topics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(500), nullable=False, index=True)  # 主题标题
+    order = Column(Integer, default=0, nullable=False)  # 排序顺序
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class TimelineEntry(Base):
+    """时间线条目"""
+    __tablename__ = "timeline_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic_id = Column(Integer, ForeignKey("timeline_topics.id"), nullable=False, index=True)  # 关联的主题ID
+    subtitle = Column(String(500), nullable=False)  # 小标题
+    conclusion = Column(Text, nullable=True)  # 调查结论
+    content = Column(Text, nullable=True)  # 内容
+    image_paths = Column(Text, nullable=True)  # 图片路径，用逗号分隔
+    order = Column(Integer, default=0, nullable=False)  # 排序顺序
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class TimelineSubEntry(Base):
+    """时间线子条目"""
+    __tablename__ = "timeline_sub_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entry_id = Column(Integer, ForeignKey("timeline_entries.id"), nullable=False, index=True)  # 关联的条目ID
+    subtitle = Column(String(500), nullable=False)  # 子标题
+    conclusion = Column(Text, nullable=True)  # 调查结论
+    content = Column(Text, nullable=True)  # 内容
+    image_paths = Column(Text, nullable=True)  # 图片路径，用逗号分隔
+    order = Column(Integer, default=0, nullable=False)  # 排序顺序
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+

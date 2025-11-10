@@ -411,3 +411,261 @@ class ChatHistoryOut(ChatHistoryBase):
         orm_mode = True
 
 
+# ==================== 点赞记录相关 ====================
+
+class LikeRecordBase(BaseModel):
+    question: str
+    answer: str
+
+
+class LikeRecordCreate(LikeRecordBase):
+    pass
+
+
+class LikeRecordOut(LikeRecordBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+# ==================== 刷题相关 schemas ====================
+
+class AlgoCategoryBase(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    order: Optional[int] = Field(default=0)
+
+
+class AlgoCategoryCreate(AlgoCategoryBase):
+    pass
+
+
+class AlgoCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    order: Optional[int] = None
+
+
+class AlgoCategoryOut(AlgoCategoryBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class AlgoProblemBase(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    category_id: Optional[int] = None
+    difficulty: str = Field(default="中等")  # 简单/中等/困难
+    companies: Optional[str] = Field(default="", max_length=500)
+    tags: Optional[str] = Field(default="", max_length=500)
+    status: str = Field(default="未开始")  # 未开始/已掌握/再复习
+    link: Optional[str] = Field(default="", max_length=1000)
+    description: Optional[str] = None
+    solution: Optional[str] = None
+
+
+class AlgoProblemCreate(AlgoProblemBase):
+    pass
+
+
+class AlgoProblemUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    category_id: Optional[int] = None
+    difficulty: Optional[str] = None
+    companies: Optional[str] = Field(default=None, max_length=500)
+    tags: Optional[str] = Field(default=None, max_length=500)
+    status: Optional[str] = None
+    link: Optional[str] = Field(default=None, max_length=1000)
+    description: Optional[str] = None
+    solution: Optional[str] = None
+
+
+class AlgoProblemOut(AlgoProblemBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+# ==================== 题解相关 schemas ====================
+
+class AlgoSolutionBase(BaseModel):
+    title: Optional[str] = Field(default="", max_length=200)
+    content: str = Field(min_length=1)  # 题解内容必填
+    language: Optional[str] = Field(default="", max_length=50)
+    complexity_time: Optional[str] = Field(default="", max_length=50)
+    complexity_space: Optional[str] = Field(default="", max_length=50)
+    order: Optional[int] = Field(default=0)
+
+
+class AlgoSolutionCreate(AlgoSolutionBase):
+    problem_id: int  # 关联的题目ID
+
+
+class AlgoSolutionUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=200)
+    content: Optional[str] = Field(default=None, min_length=1)
+    language: Optional[str] = Field(default=None, max_length=50)
+    complexity_time: Optional[str] = Field(default=None, max_length=50)
+    complexity_space: Optional[str] = Field(default=None, max_length=50)
+    order: Optional[int] = None
+
+
+class AlgoSolutionOut(AlgoSolutionBase):
+    id: int
+    problem_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+# ==================== 故事会相关 schemas ====================
+
+class StoryCategoryBase(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    order: int = Field(default=0, ge=0)
+
+
+class StoryCategoryCreate(StoryCategoryBase):
+    pass
+
+
+class StoryCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    order: Optional[int] = Field(default=None, ge=0)
+
+
+class StoryCategoryOut(StoryCategoryBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class StoryBase(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    content: str = Field(min_length=1)
+    category_id: Optional[int] = None
+    image_paths: Optional[str] = None  # 图片路径，用逗号分隔
+    essence: Optional[str] = None  # 透过故事看到的本质
+
+
+class StoryCreate(StoryBase):
+    pass
+
+
+class StoryUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    content: Optional[str] = Field(default=None, min_length=1)
+    category_id: Optional[int] = None
+    image_paths: Optional[str] = None
+    essence: Optional[str] = None
+
+
+class StoryOut(StoryBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+# ==================== 时间线记录相关 schemas ====================
+
+class TimelineTopicBase(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    order: int = Field(default=0, ge=0)
+
+
+class TimelineTopicCreate(TimelineTopicBase):
+    pass
+
+
+class TimelineTopicUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    order: Optional[int] = Field(default=None, ge=0)
+
+
+class TimelineTopicOut(TimelineTopicBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class TimelineTopicOutWithEntries(TimelineTopicOut):
+    entries: List['TimelineEntryOut'] = []
+
+
+class TimelineEntryBase(BaseModel):
+    subtitle: str = Field(min_length=1, max_length=500)
+    conclusion: Optional[str] = None
+    content: Optional[str] = None
+    image_paths: Optional[str] = None  # 图片路径，用逗号分隔
+    order: int = Field(default=0, ge=0)
+
+
+class TimelineEntryCreate(TimelineEntryBase):
+    topic_id: int
+
+
+class TimelineEntryUpdate(BaseModel):
+    subtitle: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    conclusion: Optional[str] = None
+    content: Optional[str] = None
+    image_paths: Optional[str] = None
+    order: Optional[int] = Field(default=None, ge=0)
+
+
+class TimelineEntryOut(TimelineEntryBase):
+    id: int
+    topic_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class TimelineSubEntryBase(BaseModel):
+    subtitle: str = Field(min_length=1, max_length=500)
+    conclusion: Optional[str] = None
+    content: Optional[str] = None
+    image_paths: Optional[str] = None  # 图片路径，用逗号分隔
+    order: int = Field(default=0, ge=0)
+
+
+class TimelineSubEntryCreate(TimelineSubEntryBase):
+    entry_id: int
+
+
+class TimelineSubEntryUpdate(BaseModel):
+    subtitle: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    conclusion: Optional[str] = None
+    content: Optional[str] = None
+    image_paths: Optional[str] = None
+    order: Optional[int] = Field(default=None, ge=0)
+
+
+class TimelineSubEntryOut(TimelineSubEntryBase):
+    id: int
+    entry_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+

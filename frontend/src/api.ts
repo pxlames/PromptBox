@@ -200,9 +200,125 @@ export type Opinion = {
 export type OpinionCreate = Omit<Opinion, 'id' | 'created_at' | 'updated_at'>;
 export type OpinionUpdate = Partial<OpinionCreate>;
 
+// 故事会相关类型定义
+export type StoryCategory = {
+  id: number;
+  name: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoryCategoryCreate = Omit<StoryCategory, 'id' | 'created_at' | 'updated_at'>;
+export type StoryCategoryUpdate = Partial<StoryCategoryCreate>;
+
+export type Story = {
+  id: number;
+  title: string;
+  content: string;
+  category_id: number | null;
+  image_paths: string | null;  // 图片路径，用逗号分隔
+  essence: string | null;  // 透过故事看到的本质
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoryCreate = Omit<Story, 'id' | 'created_at' | 'updated_at'>;
+export type StoryUpdate = Partial<StoryCreate>;
+
+// 刷题相关类型定义
+export type AlgoCategory = {
+  id: number;
+  name: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AlgoCategoryCreate = Omit<AlgoCategory, 'id' | 'created_at' | 'updated_at'>;
+export type AlgoCategoryUpdate = Partial<AlgoCategoryCreate>;
+
+export type AlgoProblem = {
+  id: number;
+  title: string;
+  category_id: number | null;
+  difficulty: '简单' | '中等' | '困难';
+  companies: string;
+  tags: string;
+  status: '未开始' | '已掌握' | '再复习';
+  link: string;
+  description: string | null;
+  solution: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AlgoProblemCreate = Omit<AlgoProblem, 'id' | 'created_at' | 'updated_at'>;
+export type AlgoProblemUpdate = Partial<AlgoProblemCreate>;
+
+// 题解相关类型定义
+export type AlgoSolution = {
+  id: number;
+  problem_id: number;
+  title: string;
+  content: string;
+  language: string;
+  complexity_time: string;
+  complexity_space: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AlgoSolutionCreate = Omit<AlgoSolution, 'id' | 'created_at' | 'updated_at'>;
+export type AlgoSolutionUpdate = Partial<Omit<AlgoSolution, 'id' | 'problem_id' | 'created_at' | 'updated_at'>>;
+
+// 时间线记录相关类型定义
+export type TimelineTopic = {
+  id: number;
+  title: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TimelineTopicCreate = Omit<TimelineTopic, 'id' | 'created_at' | 'updated_at'>;
+export type TimelineTopicUpdate = Partial<TimelineTopicCreate>;
+
+export type TimelineEntry = {
+  id: number;
+  topic_id: number;
+  subtitle: string;
+  conclusion: string | null;
+  content: string | null;
+  image_paths: string | null;  // 图片路径，用逗号分隔
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TimelineEntryCreate = Omit<TimelineEntry, 'id' | 'created_at' | 'updated_at'>;
+export type TimelineEntryUpdate = Partial<Omit<TimelineEntry, 'id' | 'topic_id' | 'created_at' | 'updated_at'>>;
+
+export type TimelineSubEntry = {
+  id: number;
+  entry_id: number;
+  subtitle: string;
+  conclusion: string | null;
+  content: string | null;
+  image_paths: string | null;  // 图片路径，用逗号分隔
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TimelineSubEntryCreate = Omit<TimelineSubEntry, 'id' | 'created_at' | 'updated_at'>;
+export type TimelineSubEntryUpdate = Partial<Omit<TimelineSubEntry, 'id' | 'entry_id' | 'created_at' | 'updated_at'>>;
+
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   // 使用相对路径，通过 Vite 代理访问后端
   // 这样可以避免跨域问题，特别是在局域网访问时
+  try {
   const res = await fetch(`/api${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...init,
@@ -213,6 +329,13 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (res.status === 204) return undefined as unknown as T;
   return (await res.json()) as T;
+  } catch (error) {
+    // 包装fetch错误，提供更友好的错误信息
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('网络请求失败，请检查后端服务是否运行');
+    }
+    throw error;
+  }
 }
 
 export const api = {
@@ -457,6 +580,45 @@ export const api = {
   updateOpinion: (id: number, data: OpinionUpdate) => http<Opinion>(`/opinion/opinions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteOpinion: (id: number) => http<void>(`/opinion/opinions/${id}`, { method: 'DELETE' }),
 
+  // Story API
+  // Category API
+  getStoryCategories: () => http<StoryCategory[]>('/story/categories/'),
+  getStoryCategory: (id: number) => http<StoryCategory>(`/story/categories/${id}`),
+  createStoryCategory: (data: StoryCategoryCreate) => http<StoryCategory>('/story/categories/', { method: 'POST', body: JSON.stringify(data) }),
+  updateStoryCategory: (id: number, data: StoryCategoryUpdate) => http<StoryCategory>(`/story/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteStoryCategory: (id: number) => http<void>(`/story/categories/${id}`, { method: 'DELETE' }),
+
+  // Story API
+  getStories: (params?: { skip?: number; limit?: number; category_id?: number | null }) => {
+    const query = new URLSearchParams();
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.category_id != null) query.set('category_id', String(params.category_id));
+    const qs = query.toString();
+    return http<Story[]>(`/story/stories/${qs ? `?${qs}` : ''}`);
+  },
+  getStory: (id: number) => http<Story>(`/story/stories/${id}`),
+  createStory: (data: StoryCreate) => http<Story>('/story/stories/', { method: 'POST', body: JSON.stringify(data) }),
+  updateStory: (id: number, data: StoryUpdate) => http<Story>(`/story/stories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteStory: (id: number) => http<void>(`/story/stories/${id}`, { method: 'DELETE' }),
+
+  // Story Image Upload API
+  uploadStoryImages: async (files: File[]): Promise<{ filenames: string[] }> => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    const res = await fetch(`/api/story/upload-images`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || res.statusText);
+    }
+    return await res.json();
+  },
+
   // AI Assistant API
   chat: async (messages: Array<{ role: string; content: string; image_urls?: string[] }>, stream: boolean = false, options?: { reasoning_effort?: string; temperature?: number; max_tokens?: number }) => {
     if (stream) {
@@ -609,6 +771,152 @@ export const api = {
     const qs = query.toString();
     return http<{ id: number; description: string; category_id: number | null }>(`/assistant/random-opinion${qs ? `?${qs}` : ''}`);
   },
+
+  // Like Record API (点赞功能)
+  createLikeRecord: (question: string, answer: string) => {
+    return http<{ id: number; question: string; answer: string; created_at: string }>('/assistant/likes/', {
+      method: 'POST',
+      body: JSON.stringify({ question, answer })
+    });
+  },
+  getLikeRecords: (params?: { skip?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const url = `/assistant/likes/${qs ? `?${qs}` : ''}`;
+    return http<Array<{ id: number; question: string; answer: string; created_at: string }>>(url);
+  },
+  getLikeRecord: (id: number) => {
+    return http<{ id: number; question: string; answer: string; created_at: string }>(`/assistant/likes/${id}`);
+  },
+  deleteLikeRecord: (id: number) => {
+    return http<{ success: boolean }>(`/assistant/likes/${id}`, { method: 'DELETE' });
+  },
+
+  // Algorithm Practice API
+  // Categories
+  getAlgoCategories: () => {
+    return http<Array<{ id: number; name: string; order: number; created_at: string; updated_at: string }>>('/algo/categories/');
+  },
+  getAlgoCategory: (id: number) => {
+    return http<{ id: number; name: string; order: number; created_at: string; updated_at: string }>(`/algo/categories/${id}`);
+  },
+  createAlgoCategory: (data: { name: string; order?: number }) => {
+    return http<{ id: number; name: string; order: number; created_at: string; updated_at: string }>('/algo/categories/', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+  updateAlgoCategory: (id: number, data: { name?: string; order?: number }) => {
+    return http<{ id: number; name: string; order: number; created_at: string; updated_at: string }>(`/algo/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+  deleteAlgoCategory: (id: number) => {
+    return http<void>(`/algo/categories/${id}`, { method: 'DELETE' });
+  },
+  // Problems
+  getAlgoProblems: (params?: { skip?: number; limit?: number; category_id?: number | null; difficulty?: string | null; status?: string | null; keyword?: string | null }) => {
+    const query = new URLSearchParams();
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.category_id != null) query.set('category_id', String(params.category_id));
+    if (params?.difficulty) query.set('difficulty', params.difficulty);
+    if (params?.status) query.set('status', params.status);
+    if (params?.keyword) query.set('keyword', params.keyword);
+    const qs = query.toString();
+    return http<AlgoProblem[]>(`/algo/problems/${qs ? `?${qs}` : ''}`);
+  },
+  getAlgoProblem: (id: number) => {
+    return http<AlgoProblem>(`/algo/problems/${id}`);
+  },
+  createAlgoProblem: (data: AlgoProblemCreate) => {
+    return http<AlgoProblem>('/algo/problems/', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+  updateAlgoProblem: (id: number, data: AlgoProblemUpdate) => {
+    return http<AlgoProblem>(`/algo/problems/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+  deleteAlgoProblem: (id: number) => {
+    return http<void>(`/algo/problems/${id}`, { method: 'DELETE' });
+  },
+
+  // AlgoSolution API
+  getAlgoSolutions: (problemId: number, params?: { skip?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return http<AlgoSolution[]>(`/algo/problems/${problemId}/solutions/${qs ? `?${qs}` : ''}`);
+  },
+  getAlgoSolution: (id: number) => http<AlgoSolution>(`/algo/solutions/${id}`),
+  createAlgoSolution: (data: AlgoSolutionCreate) => http<AlgoSolution>('/algo/solutions/', { method: 'POST', body: JSON.stringify(data) }),
+  updateAlgoSolution: (id: number, data: AlgoSolutionUpdate) => http<AlgoSolution>(`/algo/solutions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteAlgoSolution: (id: number) => http<void>(`/algo/solutions/${id}`, { method: 'DELETE' }),
+
+  // Timeline API
+  // Topic API
+  getTimelineTopics: (params?: { skip?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return http<TimelineTopic[]>(`/timeline/topics/${qs ? `?${qs}` : ''}`);
+  },
+  getTimelineTopic: (id: number) => http<TimelineTopic>(`/timeline/topics/${id}`),
+  createTimelineTopic: (data: TimelineTopicCreate) => http<TimelineTopic>('/timeline/topics/', { method: 'POST', body: JSON.stringify(data) }),
+  updateTimelineTopic: (id: number, data: TimelineTopicUpdate) => http<TimelineTopic>(`/timeline/topics/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTimelineTopic: (id: number) => http<void>(`/timeline/topics/${id}`, { method: 'DELETE' }),
+
+  // Entry API
+  getTimelineEntries: (topicId: number, params?: { skip?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    query.set('topic_id', String(topicId));
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return http<TimelineEntry[]>(`/timeline/entries/${qs ? `?${qs}` : ''}`);
+  },
+  getTimelineEntry: (id: number) => http<TimelineEntry>(`/timeline/entries/${id}`),
+  createTimelineEntry: (data: TimelineEntryCreate) => http<TimelineEntry>('/timeline/entries/', { method: 'POST', body: JSON.stringify(data) }),
+  updateTimelineEntry: (id: number, data: TimelineEntryUpdate) => http<TimelineEntry>(`/timeline/entries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTimelineEntry: (id: number) => http<void>(`/timeline/entries/${id}`, { method: 'DELETE' }),
+
+  // TimelineSubEntry API
+  getTimelineSubEntries: (entryId: number, params?: { skip?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    query.set('entry_id', String(entryId));
+    if (params?.skip != null) query.set('skip', String(params.skip));
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return http<TimelineSubEntry[]>(`/timeline/sub-entries/${qs ? `?${qs}` : ''}`);
+  },
+  getTimelineSubEntry: (id: number) => http<TimelineSubEntry>(`/timeline/sub-entries/${id}`),
+  createTimelineSubEntry: (data: TimelineSubEntryCreate) => http<TimelineSubEntry>('/timeline/sub-entries/', { method: 'POST', body: JSON.stringify(data) }),
+  updateTimelineSubEntry: (id: number, data: TimelineSubEntryUpdate) => http<TimelineSubEntry>(`/timeline/sub-entries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteTimelineSubEntry: (id: number) => http<void>(`/timeline/sub-entries/${id}`, { method: 'DELETE' }),
+
+  // Timeline Image Upload API
+  uploadTimelineImages: async (files: File[]): Promise<{ filenames: string[] }> => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    const res = await fetch(`/api/timeline/upload-images`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || res.statusText);
+    }
+    return await res.json();
+  },
 };
-
-

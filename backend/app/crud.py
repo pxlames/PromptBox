@@ -889,3 +889,581 @@ def delete_chat_history(db: Session, history_id: int) -> bool:
     return True
 
 
+# ==================== 点赞记录相关 ====================
+
+def create_like_record(db: Session, data: schemas.LikeRecordCreate) -> models.LikeRecord:
+    """创建点赞记录"""
+    like_record = models.LikeRecord(
+        question=data.question,
+        answer=data.answer
+    )
+    db.add(like_record)
+    db.commit()
+    db.refresh(like_record)
+    return like_record
+
+
+def get_like_record(db: Session, like_id: int) -> Optional[models.LikeRecord]:
+    """获取点赞记录"""
+    return db.get(models.LikeRecord, like_id)
+
+
+def list_like_records(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100
+) -> List[models.LikeRecord]:
+    """列表点赞记录"""
+    stmt = select(models.LikeRecord).order_by(models.LikeRecord.created_at.desc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def delete_like_record(db: Session, like_id: int) -> bool:
+    """删除点赞记录"""
+    like_record = db.get(models.LikeRecord, like_id)
+    if not like_record:
+        return False
+    db.delete(like_record)
+    db.commit()
+    return True
+
+
+# ==================== 刷题相关 CRUD ====================
+
+# AlgoCategory CRUD
+def create_algo_category(db: Session, data: schemas.AlgoCategoryCreate) -> models.AlgoCategory:
+    """创建算法分类"""
+    category = models.AlgoCategory(name=data.name, order=data.order or 0)
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def get_algo_category(db: Session, category_id: int) -> Optional[models.AlgoCategory]:
+    """获取算法分类"""
+    return db.get(models.AlgoCategory, category_id)
+
+
+def list_algo_categories(db: Session, skip: int = 0, limit: int = 1000) -> List[models.AlgoCategory]:
+    """列表算法分类（按order排序）"""
+    stmt = select(models.AlgoCategory).order_by(models.AlgoCategory.order.asc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_algo_category(db: Session, category_id: int, data: schemas.AlgoCategoryUpdate) -> Optional[models.AlgoCategory]:
+    """更新算法分类"""
+    category = db.get(models.AlgoCategory, category_id)
+    if not category:
+        return None
+    if data.name is not None:
+        category.name = data.name
+    if data.order is not None:
+        category.order = data.order
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def delete_algo_category(db: Session, category_id: int) -> bool:
+    """删除算法分类"""
+    category = db.get(models.AlgoCategory, category_id)
+    if not category:
+        return False
+    db.delete(category)
+    db.commit()
+    return True
+
+
+# AlgoProblem CRUD
+def create_algo_problem(db: Session, data: schemas.AlgoProblemCreate) -> models.AlgoProblem:
+    """创建算法题目"""
+    problem = models.AlgoProblem(
+        title=data.title,
+        category_id=data.category_id,
+        difficulty=data.difficulty,
+        companies=data.companies or "",
+        tags=data.tags or "",
+        status=data.status,
+        link=data.link or "",
+        description=data.description,
+        solution=data.solution
+    )
+    db.add(problem)
+    db.commit()
+    db.refresh(problem)
+    return problem
+
+
+def get_algo_problem(db: Session, problem_id: int) -> Optional[models.AlgoProblem]:
+    """获取算法题目"""
+    return db.get(models.AlgoProblem, problem_id)
+
+
+def list_algo_problems(
+    db: Session,
+    skip: int = 0,
+    limit: int = 1000,
+    category_id: Optional[int] = None,
+    difficulty: Optional[str] = None,
+    status: Optional[str] = None,
+    keyword: Optional[str] = None
+) -> List[models.AlgoProblem]:
+    """列表算法题目"""
+    stmt = select(models.AlgoProblem)
+    
+    if category_id is not None:
+        stmt = stmt.where(models.AlgoProblem.category_id == category_id)
+    if difficulty:
+        stmt = stmt.where(models.AlgoProblem.difficulty == difficulty)
+    if status:
+        stmt = stmt.where(models.AlgoProblem.status == status)
+    if keyword:
+        like = f"%{keyword}%"
+        stmt = stmt.where(
+            (models.AlgoProblem.title.ilike(like)) |
+            (models.AlgoProblem.tags.ilike(like)) |
+            (models.AlgoProblem.companies.ilike(like)) |
+            (models.AlgoProblem.description.ilike(like)) |
+            (models.AlgoProblem.solution.ilike(like))
+        )
+    
+    stmt = stmt.order_by(models.AlgoProblem.updated_at.desc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_algo_problem(db: Session, problem_id: int, data: schemas.AlgoProblemUpdate) -> Optional[models.AlgoProblem]:
+    """更新算法题目"""
+    problem = db.get(models.AlgoProblem, problem_id)
+    if not problem:
+        return None
+    if data.title is not None:
+        problem.title = data.title
+    if data.category_id is not None:
+        problem.category_id = data.category_id
+    if data.difficulty is not None:
+        problem.difficulty = data.difficulty
+    if data.companies is not None:
+        problem.companies = data.companies
+    if data.tags is not None:
+        problem.tags = data.tags
+    if data.status is not None:
+        problem.status = data.status
+    if data.link is not None:
+        problem.link = data.link
+    if data.description is not None:
+        problem.description = data.description
+    if data.solution is not None:
+        problem.solution = data.solution
+    db.add(problem)
+    db.commit()
+    db.refresh(problem)
+    return problem
+
+
+def delete_algo_problem(db: Session, problem_id: int) -> bool:
+    """删除算法题目"""
+    problem = db.get(models.AlgoProblem, problem_id)
+    if not problem:
+        return False
+    # 删除题目时，同时删除关联的题解
+    stmt = select(models.AlgoSolution).where(models.AlgoSolution.problem_id == problem_id)
+    solutions = db.execute(stmt).scalars().all()
+    for solution in solutions:
+        db.delete(solution)
+    db.delete(problem)
+    db.commit()
+    return True
+
+
+# ==================== 算法题解 CRUD操作 ====================
+
+def create_algo_solution(db: Session, data: schemas.AlgoSolutionCreate) -> models.AlgoSolution:
+    """创建算法题解"""
+    # 验证题目是否存在
+    problem = db.get(models.AlgoProblem, data.problem_id)
+    if not problem:
+        raise ValueError(f"题目不存在 (ID: {data.problem_id})")
+    
+    solution = models.AlgoSolution(
+        problem_id=data.problem_id,
+        title=data.title or "",
+        content=data.content,
+        language=data.language or "",
+        complexity_time=data.complexity_time or "",
+        complexity_space=data.complexity_space or "",
+        order=data.order or 0
+    )
+    db.add(solution)
+    db.commit()
+    db.refresh(solution)
+    return solution
+
+
+def get_algo_solution(db: Session, solution_id: int) -> Optional[models.AlgoSolution]:
+    """获取算法题解"""
+    return db.get(models.AlgoSolution, solution_id)
+
+
+def list_algo_solutions(
+    db: Session,
+    problem_id: int,
+    skip: int = 0,
+    limit: int = 1000
+) -> List[models.AlgoSolution]:
+    """列表算法题解"""
+    stmt = select(models.AlgoSolution).where(
+        models.AlgoSolution.problem_id == problem_id
+    ).order_by(models.AlgoSolution.order.asc(), models.AlgoSolution.id.asc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_algo_solution(db: Session, solution_id: int, data: schemas.AlgoSolutionUpdate) -> Optional[models.AlgoSolution]:
+    """更新算法题解"""
+    solution = db.get(models.AlgoSolution, solution_id)
+    if not solution:
+        return None
+    if data.title is not None:
+        solution.title = data.title
+    if data.content is not None:
+        solution.content = data.content
+    if data.language is not None:
+        solution.language = data.language
+    if data.complexity_time is not None:
+        solution.complexity_time = data.complexity_time
+    if data.complexity_space is not None:
+        solution.complexity_space = data.complexity_space
+    if data.order is not None:
+        solution.order = data.order
+    db.add(solution)
+    db.commit()
+    db.refresh(solution)
+    return solution
+
+
+def delete_algo_solution(db: Session, solution_id: int) -> bool:
+    """删除算法题解"""
+    solution = db.get(models.AlgoSolution, solution_id)
+    if not solution:
+        return False
+    db.delete(solution)
+    db.commit()
+    return True
+
+
+# ==================== 故事会 CRUD操作 ====================
+
+# StoryCategory CRUD
+def create_story_category(db: Session, data: schemas.StoryCategoryCreate) -> models.StoryCategory:
+    category = models.StoryCategory(
+        name=data.name,
+        order=data.order
+    )
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def get_story_category(db: Session, category_id: int) -> Optional[models.StoryCategory]:
+    return db.get(models.StoryCategory, category_id)
+
+
+def list_story_categories(db: Session, skip: int = 0, limit: int = 1000) -> List[models.StoryCategory]:
+    stmt = select(models.StoryCategory).order_by(models.StoryCategory.order.asc(), models.StoryCategory.id.asc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_story_category(db: Session, category_id: int, data: schemas.StoryCategoryUpdate) -> Optional[models.StoryCategory]:
+    category = db.get(models.StoryCategory, category_id)
+    if not category:
+        return None
+    if data.name is not None:
+        category.name = data.name
+    if data.order is not None:
+        category.order = data.order
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def delete_story_category(db: Session, category_id: int) -> bool:
+    category = db.get(models.StoryCategory, category_id)
+    if not category:
+        return False
+    # 删除分类时，将关联的故事 category_id 设为 None
+    stmt = select(models.Story).where(models.Story.category_id == category_id)
+    stories = db.execute(stmt).scalars().all()
+    for story in stories:
+        story.category_id = None
+    db.delete(category)
+    db.commit()
+    return True
+
+
+# Story CRUD
+def create_story(db: Session, data: schemas.StoryCreate) -> models.Story:
+    story = models.Story(
+        title=data.title,
+        content=data.content,
+        category_id=data.category_id,
+        image_paths=data.image_paths,
+        essence=data.essence
+    )
+    db.add(story)
+    db.commit()
+    db.refresh(story)
+    return story
+
+
+def get_story(db: Session, story_id: int) -> Optional[models.Story]:
+    return db.get(models.Story, story_id)
+
+
+def list_stories(
+    db: Session, 
+    skip: int = 0, 
+    limit: int = 1000,
+    category_id: Optional[int] = None
+) -> List[models.Story]:
+    stmt = select(models.Story)
+    if category_id is not None:
+        stmt = stmt.where(models.Story.category_id == category_id)
+    stmt = stmt.order_by(models.Story.updated_at.desc()).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_story(db: Session, story_id: int, data: schemas.StoryUpdate) -> Optional[models.Story]:
+    story = db.get(models.Story, story_id)
+    if not story:
+        return None
+    if data.title is not None:
+        story.title = data.title
+    if data.content is not None:
+        story.content = data.content
+    if data.category_id is not None:
+        story.category_id = data.category_id
+    if data.image_paths is not None:
+        story.image_paths = data.image_paths
+    if data.essence is not None:
+        story.essence = data.essence
+    db.add(story)
+    db.commit()
+    db.refresh(story)
+    return story
+
+
+def delete_story(db: Session, story_id: int) -> bool:
+    story = db.get(models.Story, story_id)
+    if not story:
+        return False
+    db.delete(story)
+    db.commit()
+    return True
+
+
+# ==================== 时间线记录 CRUD操作 ====================
+
+# TimelineTopic CRUD
+def create_timeline_topic(db: Session, data: schemas.TimelineTopicCreate) -> models.TimelineTopic:
+    """创建时间线主题"""
+    topic = models.TimelineTopic(
+        title=data.title,
+        order=data.order
+    )
+    db.add(topic)
+    db.commit()
+    db.refresh(topic)
+    return topic
+
+
+def get_timeline_topic(db: Session, topic_id: int) -> Optional[models.TimelineTopic]:
+    """获取时间线主题"""
+    return db.get(models.TimelineTopic, topic_id)
+
+
+def list_timeline_topics(db: Session, skip: int = 0, limit: int = 1000) -> List[models.TimelineTopic]:
+    """列表时间线主题"""
+    stmt = select(models.TimelineTopic).order_by(
+        models.TimelineTopic.order.asc(), 
+        models.TimelineTopic.id.asc()
+    ).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_timeline_topic(db: Session, topic_id: int, data: schemas.TimelineTopicUpdate) -> Optional[models.TimelineTopic]:
+    """更新时间线主题"""
+    topic = db.get(models.TimelineTopic, topic_id)
+    if not topic:
+        return None
+    if data.title is not None:
+        topic.title = data.title
+    if data.order is not None:
+        topic.order = data.order
+    db.add(topic)
+    db.commit()
+    db.refresh(topic)
+    return topic
+
+
+def delete_timeline_topic(db: Session, topic_id: int) -> bool:
+    """删除时间线主题（同时删除关联的条目）"""
+    topic = db.get(models.TimelineTopic, topic_id)
+    if not topic:
+        return False
+    # 删除关联的条目
+    stmt = select(models.TimelineEntry).where(models.TimelineEntry.topic_id == topic_id)
+    entries = db.execute(stmt).scalars().all()
+    for entry in entries:
+        db.delete(entry)
+    db.delete(topic)
+    db.commit()
+    return True
+
+
+# TimelineEntry CRUD
+def create_timeline_entry(db: Session, data: schemas.TimelineEntryCreate) -> models.TimelineEntry:
+    """创建时间线条目"""
+    entry = models.TimelineEntry(
+        topic_id=data.topic_id,
+        subtitle=data.subtitle,
+        conclusion=data.conclusion,
+        content=data.content,
+        image_paths=data.image_paths,
+        order=data.order
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def get_timeline_entry(db: Session, entry_id: int) -> Optional[models.TimelineEntry]:
+    """获取时间线条目"""
+    return db.get(models.TimelineEntry, entry_id)
+
+
+def list_timeline_entries(
+    db: Session,
+    topic_id: int,
+    skip: int = 0,
+    limit: int = 1000
+) -> List[models.TimelineEntry]:
+    """列表时间线条目"""
+    stmt = select(models.TimelineEntry).where(
+        models.TimelineEntry.topic_id == topic_id
+    ).order_by(
+        models.TimelineEntry.order.asc(),
+        models.TimelineEntry.id.asc()
+    ).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_timeline_entry(db: Session, entry_id: int, data: schemas.TimelineEntryUpdate) -> Optional[models.TimelineEntry]:
+    """更新时间线条目"""
+    entry = db.get(models.TimelineEntry, entry_id)
+    if not entry:
+        return None
+    if data.subtitle is not None:
+        entry.subtitle = data.subtitle
+    if data.conclusion is not None:
+        entry.conclusion = data.conclusion
+    if data.content is not None:
+        entry.content = data.content
+    if data.image_paths is not None:
+        entry.image_paths = data.image_paths
+    if data.order is not None:
+        entry.order = data.order
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def delete_timeline_entry(db: Session, entry_id: int) -> bool:
+    """删除时间线条目（同时删除关联的子条目）"""
+    entry = db.get(models.TimelineEntry, entry_id)
+    if not entry:
+        return False
+    # 删除关联的子条目
+    stmt = select(models.TimelineSubEntry).where(models.TimelineSubEntry.entry_id == entry_id)
+    sub_entries = db.execute(stmt).scalars().all()
+    for sub_entry in sub_entries:
+        db.delete(sub_entry)
+    db.delete(entry)
+    db.commit()
+    return True
+
+
+# ==================== 时间线子条目 CRUD操作 ====================
+
+def create_timeline_sub_entry(db: Session, data: schemas.TimelineSubEntryCreate) -> models.TimelineSubEntry:
+    """创建时间线子条目"""
+    sub_entry = models.TimelineSubEntry(
+        entry_id=data.entry_id,
+        subtitle=data.subtitle,
+        conclusion=data.conclusion,
+        content=data.content,
+        image_paths=data.image_paths,
+        order=data.order
+    )
+    db.add(sub_entry)
+    db.commit()
+    db.refresh(sub_entry)
+    return sub_entry
+
+
+def get_timeline_sub_entry(db: Session, sub_entry_id: int) -> Optional[models.TimelineSubEntry]:
+    """获取时间线子条目"""
+    return db.get(models.TimelineSubEntry, sub_entry_id)
+
+
+def list_timeline_sub_entries(
+    db: Session,
+    entry_id: int,
+    skip: int = 0,
+    limit: int = 1000
+) -> List[models.TimelineSubEntry]:
+    """列表时间线子条目"""
+    stmt = select(models.TimelineSubEntry).where(
+        models.TimelineSubEntry.entry_id == entry_id
+    ).order_by(
+        models.TimelineSubEntry.order.asc(),
+        models.TimelineSubEntry.id.asc()
+    ).offset(skip).limit(limit)
+    return list(db.execute(stmt).scalars().all())
+
+
+def update_timeline_sub_entry(db: Session, sub_entry_id: int, data: schemas.TimelineSubEntryUpdate) -> Optional[models.TimelineSubEntry]:
+    """更新时间线子条目"""
+    sub_entry = db.get(models.TimelineSubEntry, sub_entry_id)
+    if not sub_entry:
+        return None
+    if data.subtitle is not None:
+        sub_entry.subtitle = data.subtitle
+    if data.conclusion is not None:
+        sub_entry.conclusion = data.conclusion
+    if data.content is not None:
+        sub_entry.content = data.content
+    if data.image_paths is not None:
+        sub_entry.image_paths = data.image_paths
+    if data.order is not None:
+        sub_entry.order = data.order
+    db.add(sub_entry)
+    db.commit()
+    db.refresh(sub_entry)
+    return sub_entry
+
+
+def delete_timeline_sub_entry(db: Session, sub_entry_id: int) -> bool:
+    """删除时间线子条目"""
+    sub_entry = db.get(models.TimelineSubEntry, sub_entry_id)
+    if not sub_entry:
+        return False
+    db.delete(sub_entry)
+    db.commit()
+    return True
+
+

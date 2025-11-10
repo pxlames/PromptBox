@@ -397,3 +397,82 @@ def get_random_opinion(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取随机观点失败: {str(e)}")
+
+
+# ==================== 点赞记录功能 ====================
+
+class LikeRecordCreate(BaseModel):
+    """创建点赞记录请求"""
+    question: str
+    answer: str
+
+
+@assistant_router.post("/likes/", response_model=schemas.LikeRecordOut, status_code=201)
+def create_like_record(
+    data: LikeRecordCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    创建点赞记录
+    """
+    try:
+        like_record = crud.create_like_record(db, schemas.LikeRecordCreate(
+            question=data.question,
+            answer=data.answer
+        ))
+        return like_record
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"创建点赞记录失败: {str(e)}")
+
+
+@assistant_router.get("/likes/", response_model=List[schemas.LikeRecordOut])
+def list_like_records(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db)
+):
+    """
+    列表点赞记录
+    """
+    try:
+        return crud.list_like_records(db, skip=skip, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取点赞记录列表失败: {str(e)}")
+
+
+@assistant_router.get("/likes/{like_id}", response_model=schemas.LikeRecordOut)
+def get_like_record(
+    like_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取点赞记录详情
+    """
+    try:
+        like_record = crud.get_like_record(db, like_id)
+        if not like_record:
+            raise HTTPException(status_code=404, detail="点赞记录不存在")
+        return like_record
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取点赞记录失败: {str(e)}")
+
+
+@assistant_router.delete("/likes/{like_id}", status_code=204)
+def delete_like_record(
+    like_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    删除点赞记录
+    """
+    try:
+        ok = crud.delete_like_record(db, like_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail="点赞记录不存在")
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除点赞记录失败: {str(e)}")

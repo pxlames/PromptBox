@@ -5,6 +5,9 @@ from pathlib import Path
 from .db import Base, engine
 from .routes import router as prompt_router, resume_router, okr_router, interview_router, opinion_router
 from .assistant_routes import assistant_router
+from .algo_routes import algo_router
+from .story_routes import story_router
+from .timeline_routes import timeline_router
 
 
 def create_app() -> FastAPI:
@@ -34,6 +37,9 @@ def create_app() -> FastAPI:
     app.include_router(interview_router)
     app.include_router(opinion_router)
     app.include_router(assistant_router)
+    app.include_router(algo_router)
+    app.include_router(story_router)
+    app.include_router(timeline_router)
 
     @app.get("/health")
     async def health_check():

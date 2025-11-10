@@ -7,6 +7,8 @@ import OKRManager from './components/OKRManager.vue'
 import AlgoPractice from './components/AlgoPractice.vue'
 import InterviewBank from './components/InterviewBank.vue'
 import OpinionBank from './components/OpinionBank.vue'
+import StoryBank from './components/StoryBank.vue'
+import TimelineRecord from './components/TimelineRecord.vue'
 import AiAssistant from './components/AiAssistant.vue'
 
 const router = useRouter()
@@ -20,6 +22,8 @@ const tabs = [
   { id: 'algo', name: '刷题', icon: '🧩', component: AlgoPractice },
   { id: 'interview', name: '面试题库 Interview', icon: '🎤', component: InterviewBank },
   { id: 'opinion', name: '观点记录', icon: '💭', component: OpinionBank },
+  { id: 'story', name: '故事会', icon: '📖', component: StoryBank },
+  { id: 'timeline', name: '记录线', icon: '📋', component: TimelineRecord },
   // 预留更多标签页位置
   { id: 'analytics', name: '数据分析', icon: '📊', component: null },
   { id: 'settings', name: '系统设置', icon: '⚙️', component: null },

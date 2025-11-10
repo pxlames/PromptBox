@@ -38,7 +38,9 @@ router.beforeEach((to, from, next) => {
     'export': '📤 导出工具',
     'backup': '💾 备份恢复',
     'interview': '🎤 面试题库 Interview',
-    'opinion': '💭 观点记录'
+    'opinion': '💭 观点记录',
+    'story': '📖 故事会',
+    'timeline': '📋 记录线'
   }
   
   const title = tabMap[tabName] || '智能工作台'
